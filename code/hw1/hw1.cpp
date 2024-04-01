@@ -1,37 +1,44 @@
 #include "hw1.hpp"
-#include "utils_205.hpp"
 #define NUM_NODE 24
 #define NUM_ELEM 24
-#define QUAD_DEG 5
+#define NUM_QUAD 5
 #define NUM_SRC 1
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
 int main(int argc, char **argv) {
   // Matrix and vector definitions
-  double *node_pos = new double[2 * NUM_NODE];
+  Array2D<double> node_pos(2, NUM_NODE);
 
-  int *elem_list = new int[2 * NUM_ELEM];
+  Array2D<int> elem_list(2, NUM_ELEM);
 
-  int *bc_types = new int[NUM_NODE];
-  double *bc_values = new double[NUM_NODE];
+  std::vector<int> bc_types(NUM_NODE);
+  std::vector<double> bc_values(NUM_NODE);
 
-  double *src_pos = new double[2 * NUM_SRC];
-  double *src_values = new double[NUM_SRC];
+  Array2D<double> src_pos(2, NUM_SRC);
+  std::vector<double> src_values(NUM_SRC);
 
-  double *A = new double[NUM_NODE * NUM_NODE];
-  fill('c', A, NUM_NODE, NUM_NODE, 0, NUM_NODE - 1, 0, NUM_NODE - 1, 0.0);
-  double *B = new double[NUM_NODE * NUM_NODE];
-  fill('c', B, NUM_NODE, NUM_NODE, 0, NUM_NODE - 1, 0, NUM_NODE - 1, 0.0);
-  double *F = new double[NUM_NODE];
-  fill(F, NUM_NODE, 0, NUM_NODE - 1, 0.0);
+  Array2D<double> A(NUM_NODE, NUM_NODE);
+  A.fill(0.0);
+  Array2D<double> B(NUM_NODE, NUM_NODE);
+  B.fill(0.0);
 
-  double *quad_points = new double[QUAD_DEG];
-  double *quad_weights = new double[QUAD_DEG];
+  Array2D<double> LHS(NUM_NODE, NUM_NODE);
+  LHS.fill(0.0);
 
-  double *x_elem = new double[2 * NUM_ELEM];
-  double *y_elem = new double[2 * NUM_ELEM];
-  double *delta_s = new double[NUM_ELEM];
+  std::vector<double> F(NUM_NODE);
+  std::fill(F.begin(), F.end(), 0.0);
+
+  std::vector<double> RHS(NUM_NODE);
+  std::fill(RHS.begin(), RHS.end(), 0.0);
+
+  std::vector<double> quad_points(NUM_QUAD);
+  std::vector<double> quad_weights(NUM_QUAD);
+
+  Array2D<double> x_elem(2, NUM_ELEM);
+  Array2D<double> y_elem(2, NUM_ELEM);
+
+  std::vector<double> delta_s(NUM_ELEM);
 
   double alpha = 11 * PI / 24.0;
 
@@ -41,7 +48,7 @@ int main(int argc, char **argv) {
   std::string bc_filename = "problem_definition/hw1.bcs";
   std::string src_filename = "problem_definition/hw1.src";
   std::string quad_filename =
-      "quadrature/deg_" + std::to_string(QUAD_DEG) + ".gqd";
+      "quadrature/deg_" + std::to_string(NUM_QUAD) + ".gqd";
 
   // Read from files
   // Nodes
@@ -63,17 +70,11 @@ int main(int argc, char **argv) {
 
     // Node x
     getline(lineStream, token, ',');
-    double x = std::stod(token);
-
-    int idx = general_matrix_index('c', NUM_NODE, 2, i, 0);
-    node_pos[idx] = x;
+    node_pos(0, i) = std::stod(token);
 
     // Node y
     getline(lineStream, token, ',');
-    double y = std::stod(token);
-
-    idx = general_matrix_index('c', NUM_NODE, 2, i, 1);
-    node_pos[idx] = y;
+    node_pos(1, i) = std::stod(token);
   }
 
   // Elements
@@ -95,13 +96,11 @@ int main(int argc, char **argv) {
 
     // First node
     getline(lineStream, token, ',');
-    int idx = general_matrix_index('c', NUM_ELEM, 2, i, 0);
-    elem_list[idx] = std::stoi(token);
+    elem_list(0, i) = std::stoi(token);
 
     // Second node
     getline(lineStream, token, ',');
-    idx = general_matrix_index('c', NUM_ELEM, 2, i, 1);
-    elem_list[idx] = std::stoi(token);
+    elem_list(1, i) = std::stoi(token);
   }
 
   // BCs
@@ -149,13 +148,11 @@ int main(int argc, char **argv) {
 
     // Source x pos
     getline(lineStream, token, ',');
-    int idx = general_matrix_index('c', NUM_SRC, 2, i, 0);
-    src_pos[idx] = std::stod(token);
+    src_pos(0, i) = std::stod(token);
 
     // Source y pos
     getline(lineStream, token, ',');
-    idx = general_matrix_index('c', NUM_SRC, 2, i, 1);
-    src_pos[idx] = std::stod(token);
+    src_pos(1, i) = std::stod(token);
 
     // Source value
     getline(lineStream, token, ',');
@@ -170,7 +167,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  for (int i = 0; i < QUAD_DEG; i++) {
+  for (int i = 0; i < NUM_QUAD; i++) {
     std::string line;
     std::string token;
     getline(quad_file, line);
@@ -191,155 +188,197 @@ int main(int argc, char **argv) {
   // Print inputs
   if (PRINT_INPUTS) {
     std::cout << "Node positions: " << std::endl;
-    print_matrix('c', node_pos, NUM_NODE, 2);
+    node_pos.print();
 
     std::cout << "Element list: " << std::endl;
-    print_matrix('c', elem_list, NUM_ELEM, 2);
+    elem_list.print();
 
     std::cout << "BC types: " << std::endl;
-    print_vector(bc_types, NUM_NODE);
+    print_vector(bc_types);
 
     std::cout << "BC values: " << std::endl;
-    print_vector(bc_values, NUM_NODE);
+    print_vector(bc_values);
 
     std::cout << "Source positions: " << std::endl;
-    print_matrix('c', src_pos, NUM_SRC, 2);
+    src_pos.print();
 
     std::cout << "Source values: " << std::endl;
-    print_vector(src_values, NUM_SRC);
+    print_vector(src_values);
 
     std::cout << "Quadrature points: " << std::endl;
-    print_vector(quad_points, QUAD_DEG);
+    print_vector(quad_points);
 
     std::cout << "Quadrature weights: " << std::endl;
-    print_vector(quad_weights, QUAD_DEG);
+    print_vector(quad_weights);
   }
 
-  // Get element node position matrices
-  for (int i = 0; i < NUM_ELEM; i++) {
-    for (int j = 0; j < 2; j++) {
-      int elem_idx = general_matrix_index('c', NUM_ELEM, 2, i, j);
-      int x_idx =
-          general_matrix_index('c', NUM_NODE, 2, elem_list[elem_idx], 0);
-      int y_idx =
-          general_matrix_index('c', NUM_NODE, 2, elem_list[elem_idx], 1);
-      x_elem[elem_idx] = node_pos[x_idx];
-      y_elem[elem_idx] = node_pos[y_idx];
+  // Fill x_elem and y_elem
+  for (int l = 0; l < NUM_ELEM; l++) {
+    for (int k = 0; k < 2; k++) {
+      x_elem(k, l) = node_pos(0, elem_list(k, l));
+      y_elem(k, l) = node_pos(1, elem_list(k, l));
     }
-    delta_s[i] = calc_delta_s(x_elem, y_elem, NUM_ELEM, i);
   }
 
-  // Populating A and B
+  // Fill delta_s
+  for (int l = 0; l < NUM_ELEM; l++) {
+    delta_s[l] = sqrt(pow(x_elem(1, l) - x_elem(0, l), 2.0) +
+                      pow(y_elem(1, l) - y_elem(0, l), 2));
+  }
+
+  // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
-    for (int j = 0; j < NUM_ELEM; j++) {
-      int elem_idx_1 = general_matrix_index('c', NUM_ELEM, 2, j, 0);
-      int elem_idx_2 = general_matrix_index('c', NUM_ELEM, 2, j, 1);
+    for (int l = 0; l < NUM_ELEM; l++) {
+      if (i == elem_list(0, l) || i == elem_list(1, l)) {
+        A(elem_list(0, l), elem_list(0, l)) += alpha;
+        A(elem_list(1, l), elem_list(1, l)) += alpha;
 
-      if (i == elem_list[elem_idx_1] || i == elem_list[elem_idx_2]) {
-        int mat_index_1_1 =
-            general_matrix_index('c', NUM_NODE, NUM_NODE, elem_list[elem_idx_1],
-                                 elem_list[elem_idx_1]);
-        int mat_index_2_1 =
-            general_matrix_index('c', NUM_NODE, NUM_NODE, elem_list[elem_idx_2],
-                                 elem_list[elem_idx_1]);
-        int mat_index_1_2 =
-            general_matrix_index('c', NUM_NODE, NUM_NODE, elem_list[elem_idx_1],
-                                 elem_list[elem_idx_2]);
-        int mat_index_2_2 =
-            general_matrix_index('c', NUM_NODE, NUM_NODE, elem_list[elem_idx_2],
-                                 elem_list[elem_idx_2]);
+        B(elem_list(0, l), elem_list(0, l)) +=
+            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
+        B(elem_list(0, l), elem_list(1, l)) +=
+            delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
+        B(elem_list(1, l), elem_list(0, l)) +=
+            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
+        B(elem_list(1, l), elem_list(1, l)) +=
+            delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
 
-        A[mat_index_1_1] += alpha / 2.0;
-        A[mat_index_2_2] += alpha / 2.0;
+        continue;
+      }
 
-        B[mat_index_1_1] += delta_s[j] * (1.5 - log(delta_s[j])) / 2.0;
-        B[mat_index_1_2] += delta_s[j] * (0.5 - log(delta_s[j])) / 2.0;
-        B[mat_index_2_1] += delta_s[j] * (0.5 - log(delta_s[j])) / 2.0;
-        B[mat_index_2_2] += delta_s[j] * (1.5 - log(delta_s[j])) / 2.0;
+      for (int k = 0; k < NUM_QUAD; k++) {
+        double zeta = quad_points[k];
+        double w = quad_weights[k];
+        std::vector<double> phi{(1 - zeta) / 2.0, (1 + zeta) / 2.0};
+        double xs = 0;
+        double ys = 0;
 
-      } else {
-        for (int k = 0; k < QUAD_DEG; k++) {
-          double eta = quad_points[k];
-          double w = quad_weights[k];
-          double *phi = new double[2];
+        for (int j = 0; j < 2; j++) {
+          xs += x_elem(j, l) * phi[j];
+          ys += y_elem(j, l) * phi[j];
+        }
 
-          calc_basis(eta, phi);
+        double r =
+            sqrt(pow(xs - node_pos(0, i), 2) + pow(ys - node_pos(1, i), 2));
 
-          double x_elem_1 = x_elem[elem_idx_1];
-          double x_elem_2 = x_elem[elem_idx_2];
-          double y_elem_1 = y_elem[elem_idx_1];
-          double y_elem_2 = y_elem[elem_idx_2];
+        double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xs - node_pos(0, i)) -
+                       (x_elem(1, l) - x_elem(0, l)) * (ys - node_pos(1, i))) /
+                      (delta_s[l] * r);
 
-          double xs = x_elem_1 * phi[0] + x_elem_2 * phi[1];
-          double ys = y_elem_1 * phi[0] + y_elem_2 * phi[1];
+        double G = -log(r);
+        double dGdn = -drdn / r;
 
-          int node_x_idx = general_matrix_index('c', NUM_NODE, 2, i, 0);
-          int node_y_idx = general_matrix_index('c', NUM_NODE, 2, i, 1);
-
-          double x_node = node_pos[node_x_idx];
-          double y_node = node_pos[node_y_idx];
-
-          double r = sqrt(pow(xs - x_node, 2) + pow(ys - y_node, 2));
-
-          double drdn = ((y_elem_2 - y_elem_1) * (xs - x_node) -
-                         (x_elem_2 - x_elem_1) * (ys - y_node)) /
-                        (delta_s[j] * r);
-
-          double G = -1 / (2 * PI) * log(r);
-          double dGdn = -1 / (2 * PI * r) * drdn;
-
-          int mat_idx_1 = general_matrix_index('c', NUM_NODE, NUM_NODE, i,
-                                               elem_list[elem_idx_1]);
-          int mat_idx_2 = general_matrix_index('c', NUM_NODE, NUM_NODE, i,
-                                               elem_list[elem_idx_2]);
-          A[mat_idx_1] += phi[0] * dGdn * delta_s[j] * w / 2.0;
-          A[mat_idx_2] += phi[1] * dGdn * delta_s[j] * w / 2.0;
-
-          B[mat_idx_1] += phi[0] * G * delta_s[j] * w / 2.0;
-          B[mat_idx_2] += phi[1] * G * delta_s[j] * w / 2.0;
+        for (int j = 0; j < 2; j++) {
+          A(i, elem_list(j, l)) += w * phi[j] * dGdn * delta_s[l] / 2.0;
+          B(i, elem_list(j, l)) += w * phi[j] * G * delta_s[l] / 2.0;
         }
       }
     }
+    A(i, i) += alpha;
   }
 
   // Populate F
   for (int i = 0; i < NUM_NODE; i++) {
-    int node_x_idx = general_matrix_index('c', NUM_NODE, 2, i, 0);
-    int node_y_idx = general_matrix_index('c', NUM_NODE, 2, i, 1);
-
-    double node_x = node_pos[node_x_idx];
-    double node_y = node_pos[node_y_idx];
-
     for (int s = 0; s < NUM_SRC; s++) {
-      int src_x_idx = general_matrix_index('c', NUM_SRC, 2, s, 0);
-      int src_y_idx = general_matrix_index('c', NUM_SRC, 2, s, 1);
+      double r = sqrt(pow(src_pos(0, s) - node_pos(0, i), 2) +
+                      pow(src_pos(1, s) - node_pos(1, i), 2));
 
-      double src_x = src_pos[src_x_idx];
-      double src_y = src_pos[src_y_idx];
-
-      double r = sqrt(pow(src_x - node_x, 2) + pow(src_y - node_y, 2));
-
-      F[i] -= src_values[i] / (2 * PI) * log(r);
+      F[i] += -src_values[s] * log(r);
     }
   }
-  write_matrix('c', A, NUM_NODE, NUM_NODE, "A.dat");
-  write_matrix('c', B, NUM_NODE, NUM_NODE, "B.dat");
-  write_vector(F, NUM_NODE, "F.dat");
 
+  A.write("output/A.dat");
+  B.write("output/B.dat");
+  write_vector(F, "output/F.dat");
+
+  // Populate LHS and RHS
+  for (int i = 0; i < NUM_NODE; i++) {
+    if (bc_types[i] == 1) {
+      F -= A.getColVec(i) * bc_values[i];
+      LHS.insert(-B, 0, i, NUM_NODE, 1, 0, i);
+    } else {
+      F += B.getColVec(i) * bc_values[i];
+      LHS.insert(A, 0, i, NUM_NODE, 1, 0, i);
+    }
+  }
+
+  LHS.write("output/LHS.dat");
+  write_vector(F, "output/RHS.dat");
+
+  lapack_int info;
+  lapack_int *ipiv = new lapack_int[A.getRows()];
+  info = LAPACKE_dgesv(LAPACK_COL_MAJOR, LHS.getRows(), 1, LHS.dataPtr(),
+                       A.getRows(), ipiv, F.data(), F.size());
+
+  write_vector(F, "output/new_bcs.dat");
   return EXIT_SUCCESS;
 }
 
-double calc_delta_s(double *x_elem, double *y_elem, int num_rows, int elem) {
-  int idx_1 = general_matrix_index('c', num_rows, 2, elem, 0);
-  int idx_2 = general_matrix_index('c', num_rows, 2, elem, 1);
-
-  return sqrt(pow(x_elem[idx_2] - x_elem[idx_1], 2) +
-              pow(y_elem[idx_2] - y_elem[idx_1], 2));
+template <typename T> void print_vector(std::vector<T> vec) {
+  for (auto it = vec.begin(); it != vec.end(); ++it) {
+    std::cout << std::setw(10) << std::setprecision(4) << *it << std::endl;
+  }
 }
 
-int calc_basis(double eta, double *phi) {
-  phi[0] = (1 - eta) / 2.0;
-  phi[1] = (1 + eta) / 2.0;
+template <typename T>
+void write_vector(std::vector<T> vec, std::string filename) {
+  std::ofstream file;
+  file.open(filename);
+  for (auto it = vec.begin(); it != vec.end(); ++it) {
+    file << *it << std::endl;
+  }
+  file.close();
+}
 
-  return EXIT_SUCCESS;
+template <typename T>
+std::vector<T> operator+(const std::vector<T> &a, const std::vector<T> &b) {
+  if (a.size() != b.size()) {
+    std::cerr << "Vectors a and b in a+b are not the same size" << std::endl;
+    return a;
+  } else {
+    std::vector<T> vec3(a.size());
+    for (int i = 0; i < a.size(); i++) {
+      vec3[i] = a[i] + b[i];
+    }
+    return vec3;
+  }
+}
+
+template <typename T>
+void operator+=(std::vector<T> &a, const std::vector<T> &b) {
+  if (a.size() != b.size()) {
+    std::cerr << "Vectors a and b in a+b are not the same size" << std::endl;
+  } else {
+    for (int i = 0; i < a.size(); i++) {
+      a[i] += b[i];
+    }
+  }
+}
+
+template <typename T>
+void operator-=(std::vector<T> &a, const std::vector<T> &b) {
+  if (a.size() != b.size()) {
+    std::cerr << "Vectors a and b in a-b are not the same size" << std::endl;
+  } else {
+    for (int i = 0; i < a.size(); i++) {
+      a[i] -= b[i];
+    }
+  }
+}
+
+template <typename T>
+std::vector<T> operator*(const std::vector<T> &vec, const T &scalar) {
+  std::vector<T> out(vec.size());
+  for (std::size_t i = 0; i < vec.size(); i++) {
+    out[i] = vec[i] * scalar;
+  }
+  return out;
+}
+
+template <typename T>
+std::vector<T> operator*(const T &scalar, const std::vector<T> &vec) {
+  std::vector<T> out(vec.size());
+  for (std::size_t i = 0; i < vec.size(); i++) {
+    out[i] = vec[i] * scalar;
+  }
+  return out;
 }
