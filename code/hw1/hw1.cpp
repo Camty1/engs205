@@ -3,6 +3,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 5
 #define NUM_SRC 1
+#define NUM_SAMP 721
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -42,6 +43,12 @@ int main(int argc, char **argv) {
 
   double alpha = 11 * PI / 24.0;
 
+  std::vector<double> u(NUM_ELEM);
+  std::vector<double> dudn(NUM_ELEM);
+
+  Array2D<double> samp_points(2, NUM_SAMP);
+  std::vector<double> u_sample(NUM_SAMP);
+
   // Filename definitions
   std::string pos_filename = "problem_definition/hw1.nod";
   std::string elem_filename = "problem_definition/hw1.ele";
@@ -49,6 +56,7 @@ int main(int argc, char **argv) {
   std::string src_filename = "problem_definition/hw1.src";
   std::string quad_filename =
       "quadrature/deg_" + std::to_string(NUM_QUAD) + ".gqd";
+  std::string samp_filename = "problem_definition/domain_samples.dat";
 
   // Read from files
   // Nodes
@@ -185,6 +193,32 @@ int main(int argc, char **argv) {
     quad_weights[i] = std::stod(token);
   }
 
+  // Sample points
+  std::ifstream samp_file(samp_filename);
+
+  if (!samp_file.is_open()) {
+    std::cerr << "Could not open sample file" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  for (int i = 0; i < NUM_SAMP; i++) {
+    std::string line;
+    std::string token;
+    getline(samp_file, line);
+    std::istringstream lineStream(line);
+
+    // Point number, do nothing
+    getline(lineStream, token, ',');
+
+    // X coordinate of sample point;
+    getline(lineStream, token, ',');
+    samp_points(0, i) = std::stod(token);
+
+    // Y coordinate of sample point;
+    getline(lineStream, token, ',');
+    samp_points(1, i) = std::stod(token);
+  }
+
   // Print inputs
   if (PRINT_INPUTS) {
     std::cout << "Node positions: " << std::endl;
@@ -210,6 +244,9 @@ int main(int argc, char **argv) {
 
     std::cout << "Quadrature weights: " << std::endl;
     print_vector(quad_weights);
+
+    std::cout << "Sample points" << std::endl;
+    samp_points.print();
   }
 
   // Fill x_elem and y_elem
@@ -223,12 +260,14 @@ int main(int argc, char **argv) {
   // Fill delta_s
   for (int l = 0; l < NUM_ELEM; l++) {
     delta_s[l] = sqrt(pow(x_elem(1, l) - x_elem(0, l), 2.0) +
-                      pow(y_elem(1, l) - y_elem(0, l), 2));
+                      pow(y_elem(1, l) - y_elem(0, l), 2.0));
   }
 
   // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
     for (int l = 0; l < NUM_ELEM; l++) {
+
+      // Singularity, so use analytic solution
       if (i == elem_list(0, l) || i == elem_list(1, l)) {
         A(elem_list(0, l), elem_list(0, l)) += alpha;
         A(elem_list(1, l), elem_list(1, l)) += alpha;
@@ -238,13 +277,14 @@ int main(int argc, char **argv) {
         B(elem_list(0, l), elem_list(1, l)) +=
             delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
         B(elem_list(1, l), elem_list(0, l)) +=
-            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
-        B(elem_list(1, l), elem_list(1, l)) +=
             delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
+        B(elem_list(1, l), elem_list(1, l)) +=
+            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
 
         continue;
       }
 
+      // Gauss quadrature
       for (int k = 0; k < NUM_QUAD; k++) {
         double zeta = quad_points[k];
         double w = quad_weights[k];
@@ -260,12 +300,13 @@ int main(int argc, char **argv) {
         double r =
             sqrt(pow(xs - node_pos(0, i), 2) + pow(ys - node_pos(1, i), 2));
 
-        double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xs - node_pos(0, i)) -
-                       (x_elem(1, l) - x_elem(0, l)) * (ys - node_pos(1, i))) /
-                      (delta_s[l] * r);
+        double rhat_dot_nhat =
+            ((y_elem(1, l) - y_elem(0, l)) * (xs - node_pos(0, i)) -
+             (x_elem(1, l) - x_elem(0, l)) * (ys - node_pos(1, i))) /
+            (delta_s[l] * r);
 
         double G = -log(r);
-        double dGdn = -drdn / r;
+        double dGdn = -rhat_dot_nhat / r;
 
         for (int j = 0; j < 2; j++) {
           A(i, elem_list(j, l)) += w * phi[j] * dGdn * delta_s[l] / 2.0;
@@ -304,12 +345,27 @@ int main(int argc, char **argv) {
   LHS.write("output/LHS.dat");
   write_vector(F, "output/RHS.dat");
 
+  // Solve system
   lapack_int info;
   lapack_int *ipiv = new lapack_int[A.getRows()];
   info = LAPACKE_dgesv(LAPACK_COL_MAJOR, LHS.getRows(), 1, LHS.dataPtr(),
                        A.getRows(), ipiv, F.data(), F.size());
 
   write_vector(F, "output/new_bcs.dat");
+
+  for (int i = 0; i < NUM_NODE; i++) {
+    if (bc_types[i] == 1) {
+      u[i] = bc_values[i];
+      dudn[i] = F[i];
+    } else {
+      u[i] = F[i];
+      dudn[i] = bc_values[i];
+    }
+  }
+
+  write_vector(u, "output/u_boundary.dat");
+  write_vector(dudn, "output/dudn_boundary.dat");
+
   return EXIT_SUCCESS;
 }
 
