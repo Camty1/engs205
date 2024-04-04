@@ -48,6 +48,10 @@ int main(int argc, char **argv) {
 
   Array2D<double> samp_points(2, NUM_SAMP);
   std::vector<double> u_sample(NUM_SAMP);
+  std::fill(u_sample.begin(), u_sample.end(), 0.0);
+
+  Array2D<double> u_elem(2, NUM_ELEM);
+  Array2D<double> dudn_elem(2, NUM_ELEM);
 
   // Filename definitions
   std::string pos_filename = "problem_definition/hw1.nod";
@@ -323,7 +327,7 @@ int main(int argc, char **argv) {
       double r = sqrt(pow(src_pos(0, s) - node_pos(0, i), 2) +
                       pow(src_pos(1, s) - node_pos(1, i), 2));
 
-      F[i] += -src_values[s] * log(r);
+      F[i] -= src_values[s] * log(r);
     }
   }
 
@@ -353,6 +357,7 @@ int main(int argc, char **argv) {
 
   write_vector(F, "output/new_bcs.dat");
 
+  // Split into u and dudn
   for (int i = 0; i < NUM_NODE; i++) {
     if (bc_types[i] == 1) {
       u[i] = bc_values[i];
@@ -363,8 +368,62 @@ int main(int argc, char **argv) {
     }
   }
 
+  for (int l = 0; l < NUM_ELEM; l++) {
+    for (int j = 0; j < 2; j++) {
+      u_elem(j, l) = u[elem_list(j, l)];
+      dudn_elem(j, l) = dudn[elem_list(j, l)];
+    }
+  }
+
   write_vector(u, "output/u_boundary.dat");
   write_vector(dudn, "output/dudn_boundary.dat");
+
+  // Sample across domain
+  for (int p = 0; p < NUM_SAMP; p++) {
+    for (int l = 0; l < NUM_ELEM; l++) {
+      for (int k = 0; k < NUM_QUAD; k++) {
+        double zeta = quad_points[k];
+        double w = quad_weights[k];
+        double xs = 0;
+        double ys = 0;
+
+        std::vector<double> phi = {(1 - zeta) / 2.0, (1 + zeta) / 2.0};
+
+        for (int j = 0; j < 2; j++) {
+          xs += x_elem(j, l) * phi[j];
+          ys += y_elem(j, l) * phi[j];
+        }
+
+        double r = sqrt(pow(xs - samp_points(0, p), 2.0) +
+                        pow(ys - samp_points(1, p), 2));
+
+        double rhat_dot_nhat =
+            ((y_elem(1, l) - y_elem(0, l)) * (xs - samp_points(0, p)) -
+             (x_elem(1, l) - x_elem(0, l)) * (ys - samp_points(1, p))) /
+            (delta_s[l] * r);
+
+        double G = -log(r);
+        double dGdn = -rhat_dot_nhat / r;
+
+        for (int j = 0; j < 2; j++) {
+          u_sample[p] +=
+              w *
+              (u_elem(j, l) * phi[j] * G - dudn_elem(j, l) + phi[j] * dGdn) *
+              delta_s[l] / 2.0;
+        }
+      }
+    }
+    for (int s = 0; s < NUM_SRC; s++) {
+      double r = sqrt(pow(src_pos(0, s) - samp_points(0, p), 2) +
+                      pow(src_pos(1, s) - samp_points(1, p), 2));
+
+      u_sample[p] += src_values[s] * log(r);
+    }
+
+    u_sample[p] /= 2 * PI;
+  }
+
+  write_vector(u_sample, "output/u_sample.dat");
 
   return EXIT_SUCCESS;
 }

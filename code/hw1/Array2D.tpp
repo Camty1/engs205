@@ -1,5 +1,3 @@
-// Array2D.cpp
-
 template <typename T>
 Array2D<T>::Array2D(size_t rows, size_t cols)
     : data(rows * cols), rows(rows), cols(cols) {}
