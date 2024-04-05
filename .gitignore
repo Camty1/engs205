@@ -10,6 +10,3 @@
 
 # Ignore MATLAB autosave files
 *.asv
-
-# Ignore .dat files
-*.dat
