@@ -2,6 +2,7 @@
 *
 !*.*
 !*/
+!Makefile
 
 # Ignore fotran object and module files
 *.o
