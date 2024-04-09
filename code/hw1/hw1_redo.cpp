@@ -1,4 +1,5 @@
 #include "hw1.hpp"
+#include <lapacke.h>
 #define NUM_NODE 24
 #define NUM_ELEM 24
 #define NUM_QUAD 5
@@ -6,6 +7,8 @@
 #define NUM_SAMP 721
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
+
+double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead);
 
 int main(int argc, char **argv) {
   // Matrix and vector definitions
@@ -16,8 +19,8 @@ int main(int argc, char **argv) {
   std::vector<int> bc_types(NUM_NODE);
   std::vector<double> bc_values(NUM_NODE);
 
-  Array2D<double> src_pos(2, NUM_SRC);
-  std::vector<double> src_values(NUM_SRC);
+  Array2D<double> source_pos(2, NUM_SRC);
+  std::vector<double> source_values(NUM_SRC);
 
   Array2D<double> A(NUM_NODE, NUM_NODE);
   A.fill(0.0);
@@ -41,7 +44,7 @@ int main(int argc, char **argv) {
 
   std::vector<double> delta_s(NUM_ELEM);
 
-  double alpha = 11 * PI / 12.0;
+  std::vector<double> alpha(NUM_NODE);
 
   std::vector<double> u(NUM_ELEM);
   std::vector<double> dudn(NUM_ELEM);
@@ -57,7 +60,7 @@ int main(int argc, char **argv) {
   std::string pos_filename = "problem_definition/hw1.nod";
   std::string elem_filename = "problem_definition/hw1.ele";
   std::string bc_filename = "problem_definition/hw1.bcs";
-  std::string src_filename = "problem_definition/hw1.src";
+  std::string source_filename = "problem_definition/hw1.src";
   std::string quad_filename =
       "quadrature/deg_" + std::to_string(NUM_QUAD) + ".gqd";
   std::string samp_filename = "problem_definition/domain_samples.dat";
@@ -142,17 +145,17 @@ int main(int argc, char **argv) {
   }
 
   // Sources
-  std::ifstream src_file(src_filename);
+  std::ifstream source_file(source_filename);
 
-  if (!src_file.is_open()) {
-    std::cerr << "Could not open src file" << std::endl;
+  if (!source_file.is_open()) {
+    std::cerr << "Could not open source file" << std::endl;
     return EXIT_FAILURE;
   }
 
   for (int i = 0; i < NUM_SRC; i++) {
     std::string line;
     std::string token;
-    getline(src_file, line);
+    getline(source_file, line);
     std::istringstream lineStream(line);
 
     // Source number, do nothing
@@ -160,15 +163,15 @@ int main(int argc, char **argv) {
 
     // Source x pos
     getline(lineStream, token, ',');
-    src_pos(0, i) = std::stod(token);
+    source_pos(0, i) = std::stod(token);
 
     // Source y pos
     getline(lineStream, token, ',');
-    src_pos(1, i) = std::stod(token);
+    source_pos(1, i) = std::stod(token);
 
     // Source value
     getline(lineStream, token, ',');
-    src_values[i] = std::stod(token);
+    source_values[i] = std::stod(token);
   }
 
   // Quadrature
@@ -238,10 +241,10 @@ int main(int argc, char **argv) {
     print_vector(bc_values);
 
     std::cout << "Source positions: " << std::endl;
-    src_pos.print();
+    source_pos.print();
 
     std::cout << "Source values: " << std::endl;
-    print_vector(src_values);
+    print_vector(source_values);
 
     std::cout << "Quadrature points: " << std::endl;
     print_vector(quad_points);
@@ -267,86 +270,115 @@ int main(int argc, char **argv) {
                       pow(y_elem(1, l) - y_elem(0, l), 2.0));
   }
 
+  // Fill alpha
+  for (int i = 0; i < NUM_NODE; i++) {
+    double x_ahead = node_pos(0, (i + 1) % NUM_NODE);
+    double x = node_pos(0, i);
+    double y_ahead = node_pos(1, (i + 1) % NUM_NODE);
+    double y = node_pos(1, i);
+    double x_behind = node_pos(0, (i - 1) % NUM_NODE);
+    double y_behind = node_pos(1, (i - 1) % NUM_NODE);
+
+    if (i == 0) {
+      x_behind = node_pos(0, NUM_NODE - 1);
+      y_behind = node_pos(1, NUM_NODE - 1);
+    }
+
+    alpha[i] = calc_alpha(x_behind, y_behind, x, y, x_ahead, y_ahead);
+
+  }
+
   // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
     for (int l = 0; l < NUM_ELEM; l++) {
-
-      // Singularity, so use analytic solution
       if (i == elem_list(0, l) || i == elem_list(1, l)) {
-        A(elem_list(0, l), elem_list(0, l)) += alpha;
-        A(elem_list(1, l), elem_list(1, l)) += alpha;
 
-        B(elem_list(0, l), elem_list(0, l)) +=
-            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
-        B(elem_list(0, l), elem_list(1, l)) +=
-            delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
-        B(elem_list(1, l), elem_list(0, l)) +=
-            delta_s[l] * (0.5 - log(delta_s[l])) / 2.0;
-        B(elem_list(1, l), elem_list(1, l)) +=
-            delta_s[l] * (1.5 - log(delta_s[l])) / 2.0;
+        //A(elem_list(0, l), elem_list(0, l)) = A(elem_list(0, l), elem_list(0, l)) + alpha[elem_list(0, l)] / 2.0;
 
-        continue;
+        //A(elem_list(1, l), elem_list(1, l)) = A(elem_list(1, l), elem_list(1, l)) + alpha[elem_list(1, l)] / 2.0;
+
+        B(elem_list(0, l), elem_list(0, l)) = B(elem_list(0, l), elem_list(0, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+
+        B(elem_list(0, l), elem_list(1, l)) = B(elem_list(0, l), elem_list(1, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+
+        B(elem_list(1, l), elem_list(1, l)) = B(elem_list(1, l), elem_list(1, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+
+        B(elem_list(1, l), elem_list(0, l)) = B(elem_list(1, l), elem_list(0, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+
       }
+      else {
+        for (int k = 0; k < NUM_QUAD; k++) {
+          double zeta = quad_points[k];
+          double w = quad_weights[k];
+          std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
 
-      // Gauss quadrature
-      for (int k = 0; k < NUM_QUAD; k++) {
-        double zeta = quad_points[k];
-        double w = quad_weights[k];
-        std::vector<double> phi{(1 - zeta) / 2.0, (1 + zeta) / 2.0};
-        double xs = 0;
-        double ys = 0;
+          double x = node_pos(0, i);
+          double y = node_pos(1, i);
 
-        for (int j = 0; j < 2; j++) {
-          xs += x_elem(j, l) * phi[j];
-          ys += y_elem(j, l) * phi[j];
-        }
+          double xs = x_elem(0, l) * phi[0] + x_elem(1, l) * phi[1];
+          double ys = y_elem(0, l) * phi[0] + y_elem(1, l) * phi[1];
 
-        double r =
-            sqrt(pow(xs - node_pos(0, i), 2) + pow(ys - node_pos(1, i), 2));
+          double r = sqrt(pow(xs - x, 2) + pow(ys - y, 2));
+          double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xs - x) - (x_elem(1, l) - x_elem(0, l)) * (ys - y)) / (delta_s[l] * r);
 
-        double rhat_dot_nhat =
-            ((y_elem(1, l) - y_elem(0, l)) * (xs - node_pos(0, i)) -
-             (x_elem(1, l) - x_elem(0, l)) * (ys - node_pos(1, i))) /
-            (delta_s[l] * r);
+          double G = -log(r);
+          double dGdn = -1 / r * drdn;
 
-        double G = -log(r);
-        double dGdn = -rhat_dot_nhat / r;
+          //std::cout << i << "," << l << "," << k << "," << zeta << "," << w << "," << phi[0] << "," << phi[1] << "," << x << "," << y << "," << x_elem(0, l) << "," << y_elem(0, l) << "," << x_elem(1, l) << "," << y_elem(1, l) << "," << xs << "," << ys << "," << delta_s[l] << "," << r << "," << drdn << "," << G << "," << dGdn << std::endl;
 
-        for (int j = 0; j < 2; j++) {
-          A(i, elem_list(j, l)) += w * phi[j] * dGdn * delta_s[l] / 2.0;
-          B(i, elem_list(j, l)) += w * phi[j] * G * delta_s[l] / 2.0;
+          A(i, elem_list(0, l)) = A(i, elem_list(0, l)) + phi[0] * dGdn * delta_s[l] * w / 2.0;
+          A(i, elem_list(1, l)) = A(i, elem_list(1, l)) + phi[1] * dGdn * delta_s[l] * w / 2.0;
+
+          B(i, elem_list(0, l)) = B(i, elem_list(0, l)) + phi[0] * G * delta_s[l] * w / 2.0;
+          B(i, elem_list(1, l)) = B(i, elem_list(1, l)) + phi[1] * G * delta_s[l] * w / 2.0;
+
         }
       }
+      //std::cout << i << ", " << l << ", " << elem_list(0, l) << ", " << elem_list(1, l) << ", " <<B(1,0) << std::endl;
     }
+    A(i,i) = A(i,i) + alpha[i];
   }
 
   // Populate F
   for (int i = 0; i < NUM_NODE; i++) {
     for (int s = 0; s < NUM_SRC; s++) {
-      double r = sqrt(pow(src_pos(0, s) - node_pos(0, i), 2) +
-                      pow(src_pos(1, s) - node_pos(1, i), 2));
 
-      F[i] -= src_values[s] * log(r);
+      double x = node_pos(0, i);
+      double y = node_pos(1, i);
+
+      double xs = source_pos(0, s);
+      double ys = source_pos(1, s);
+
+      double r = sqrt(pow(xs - x, 2) + pow(ys - y, 2));
+      double G = -log(r);
+
+      F[i] = F[i] + source_values[s] * G;
+
     }
   }
 
-  A.write("output/A.dat");
-  B.write("output/B.dat");
-  write_vector(F, "output/F.dat");
+  A.write("A.dat");
+  B.write("B.dat");
+  write_vector(F, "F.dat");
 
-  // Populate LHS and RHS
-  for (int i = 0; i < NUM_NODE; i++) {
-    if (bc_types[i] == 1) {
-      F -= A.getColVec(i) * bc_values[i];
-      LHS.insert(-B, 0, i, NUM_NODE, 1, 0, i);
-    } else {
-      F += B.getColVec(i) * bc_values[i];
-      LHS.insert(A, 0, i, NUM_NODE, 1, 0, i);
+
+  for (int j = 0; j < NUM_NODE; j++) {
+    if (bc_types[j] == 1) {
+      for (int i = 0; i < NUM_NODE; i++) {
+        LHS(i, j) = -B(i, j);
+        F[i] = F[i] - A(i, j) * bc_values[j];
+      }
+    }
+    else {
+      for (int i = 0; i < NUM_NODE; i++) {
+        LHS(i, j) = A(i, j);
+        F[i] = F[i] + B(i, j) * bc_values[j];
+      }
     }
   }
 
-  LHS.write("output/LHS.dat");
-  write_vector(F, "output/RHS.dat");
+  LHS.write("LHS.dat");
+  write_vector(F, "RHS.dat");
 
   // Solve system
   lapack_int info;
@@ -354,77 +386,30 @@ int main(int argc, char **argv) {
   info = LAPACKE_dgesv(LAPACK_COL_MAJOR, LHS.getRows(), 1, LHS.dataPtr(),
                        A.getRows(), ipiv, F.data(), F.size());
 
-  write_vector(F, "output/new_bcs.dat");
+  write_vector(F, "out.dat");
 
-  // Split into u and dudn
   for (int i = 0; i < NUM_NODE; i++) {
     if (bc_types[i] == 1) {
       u[i] = bc_values[i];
       dudn[i] = F[i];
-    } else {
+    }
+    else {
       u[i] = F[i];
       dudn[i] = bc_values[i];
     }
   }
 
-  for (int l = 0; l < NUM_ELEM; l++) {
-    for (int j = 0; j < 2; j++) {
-      u_elem(j, l) = u[elem_list(j, l)];
-      dudn_elem(j, l) = dudn[elem_list(j, l)];
-    }
-  }
+  write_vector(u, "u.dat");
+  write_vector(dudn, "dudn.dat");
 
-  write_vector(u, "output/u_boundary.dat");
-  write_vector(dudn, "output/dudn_boundary.dat");
+}
 
-  // Sample across domain
-  for (int p = 0; p < NUM_SAMP; p++) {
-    for (int l = 0; l < NUM_ELEM; l++) {
-      for (int k = 0; k < NUM_QUAD; k++) {
-        double zeta = quad_points[k];
-        double w = quad_weights[k];
-        double xs = 0;
-        double ys = 0;
+double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead) {
+  double a = sqrt(pow(x_ahead - x, 2) + pow(y_ahead - y, 2));
+  double b = sqrt(pow(x - x_behind, 2) + pow(y - y_behind, 2));
+  double c = sqrt(pow(x_ahead - x_behind, 2) + pow(y_ahead - y_behind, 2));
 
-        std::vector<double> phi = {(1 - zeta) / 2.0, (1 + zeta) / 2.0};
-
-        for (int j = 0; j < 2; j++) {
-          xs += x_elem(j, l) * phi[j];
-          ys += y_elem(j, l) * phi[j];
-        }
-
-        double r = sqrt(pow(xs - samp_points(0, p), 2.0) +
-                        pow(ys - samp_points(1, p), 2));
-
-        double rhat_dot_nhat =
-            ((y_elem(1, l) - y_elem(0, l)) * (xs - samp_points(0, p)) -
-             (x_elem(1, l) - x_elem(0, l)) * (ys - samp_points(1, p))) /
-            (delta_s[l] * r);
-
-        double G = -log(r);
-        double dGdn = -rhat_dot_nhat / r;
-
-        for (int j = 0; j < 2; j++) {
-          u_sample[p] +=
-              w *
-              (u_elem(j, l) * phi[j] * G - dudn_elem(j, l) + phi[j] * dGdn) *
-              delta_s[l] / 2.0;
-        }
-      }
-    }
-    for (int s = 0; s < NUM_SRC; s++) {
-      double r = sqrt(pow(src_pos(0, s) - samp_points(0, p), 2) +
-                      pow(src_pos(1, s) - samp_points(1, p), 2));
-
-      u_sample[p] += src_values[s] * log(r);
-    }
-
-    u_sample[p] /= 2 * PI;
-  }
-
-  write_vector(u_sample, "output/u_sample.dat");
-
-  return EXIT_SUCCESS;
+  return acos((pow(a, 2) + pow(b, 2) - pow(c, 2)) / (2 * a * b));
 }
 
 template <typename T> void print_vector(std::vector<T> vec) {
