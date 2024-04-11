@@ -1,5 +1,5 @@
-NUM_ROWS = 101;
-NUM_COLS = 101;
+NUM_ROWS = 301;
+NUM_COLS = 301;
 
 x = linspace(-1, 1, NUM_COLS);
 y = linspace(-1, 1, NUM_ROWS);
@@ -42,7 +42,7 @@ end
 
 mask_2 = ones(size(x_mesh));
 
-mask_2(r_mesh >= 0.9) = 0;
+mask_2(r_mesh >= 0.95) = 0;
 
 mask = mask & mask_2;
 
@@ -56,5 +56,3 @@ writematrix([(0:length(x_out)-1)', x_out, y_out], "problem_definition/sample_poi
 writematrix(x_mesh, "x_mesh.mat", 'FileType', 'text');
 writematrix(y_mesh, "y_mesh.mat", 'FileType', 'text');
 writematrix(mask, "mask.mat", 'FileType', 'text');
-
-

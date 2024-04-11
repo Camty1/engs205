@@ -4,7 +4,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 4
 #define NUM_SRC 1
-#define NUM_SAMP 7048
+#define NUM_SAMP 300
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -273,12 +273,13 @@ int main(int argc, char **argv) {
 
   // Fill alpha
   for (int i = 0; i < NUM_NODE; i++) {
-    double x_ahead = node_pos(0, (i + 1) % NUM_NODE);
-    double x = node_pos(0, i);
-    double y_ahead = node_pos(1, (i + 1) % NUM_NODE);
-    double y = node_pos(1, i);
     double x_behind = node_pos(0, (i - 1) % NUM_NODE);
+    double x = node_pos(0, i);
+    double x_ahead = node_pos(0, (i + 1) % NUM_NODE);
+
     double y_behind = node_pos(1, (i - 1) % NUM_NODE);
+    double y = node_pos(1, i);
+    double y_ahead = node_pos(1, (i + 1) % NUM_NODE);
 
     if (i == 0) {
       x_behind = node_pos(0, NUM_NODE - 1);
@@ -291,49 +292,60 @@ int main(int argc, char **argv) {
 
   // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
+    double x = node_pos(0, i);
+    double y = node_pos(1, i);
+
     for (int l = 0; l < NUM_ELEM; l++) {
+      int il_1 = elem_list(0, l);
+      int il_2 = elem_list(1, l);
+
       // Handle analytical integrals later
-      if (i == elem_list(0, l) || i == elem_list(1, l)) {
+      if (i == il_1 || i == il_2) {
         continue;
       }
-
+      
+      // Gauss quadrature
       for (int k = 0; k < NUM_QUAD; k++) {
         double zeta = quad_points[k];
         double w = quad_weights[k];
+
+        // Get basis fcns
         std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
-
-        double x = node_pos(0, i);
-        double y = node_pos(1, i);
-
+        
+        // Get sample point from basis functions
         double xk = x_elem(0, l) * phi[0] + x_elem(1, l) * phi[1];
         double yk = y_elem(0, l) * phi[0] + y_elem(1, l) * phi[1];
 
+        // Calculate functions using points
         double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
         double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xk - x) - (x_elem(1, l) - x_elem(0, l)) * (yk - y)) / (delta_s[l] * r);
 
         double G = -log(r);
         double dGdn = -1 / r * drdn;
 
-        A(i, elem_list(0, l)) = A(i, elem_list(0, l)) + phi[0] * dGdn * delta_s[l] * w / 2.0;
-        A(i, elem_list(1, l)) = A(i, elem_list(1, l)) + phi[1] * dGdn * delta_s[l] * w / 2.0;
+        A(i, il_1) = A(i, il_1) + phi[0] * dGdn * delta_s[l] * w / 2.0;
+        A(i, il_2) = A(i, il_2) + phi[1] * dGdn * delta_s[l] * w / 2.0;
 
-        B(i, elem_list(0, l)) = B(i, elem_list(0, l)) + phi[0] * G * delta_s[l] * w / 2.0;
-        B(i, elem_list(1, l)) = B(i, elem_list(1, l)) + phi[1] * G * delta_s[l] * w / 2.0;
+        B(i, il_1) = B(i, il_1) + phi[0] * G * delta_s[l] * w / 2.0;
+        B(i, il_2) = B(i, il_2) + phi[1] * G * delta_s[l] * w / 2.0;
 
       }
     }
   }
-  
+
   // Analytical integrals
   for (int l = 0; l < NUM_ELEM; l++) {
-    A(elem_list(0, l), elem_list(0, l)) = A(elem_list(0, l), elem_list(0, l)) + alpha[elem_list(0, l)] / 2.0;
-    A(elem_list(1, l), elem_list(1, l)) = A(elem_list(1, l), elem_list(1, l)) + alpha[elem_list(1, l)] / 2.0;
+    int il_1 = elem_list(0, l);
+    int il_2 = elem_list(1, l);
 
-    B(elem_list(0, l), elem_list(0, l)) = B(elem_list(0, l), elem_list(0, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
-    B(elem_list(1, l), elem_list(1, l)) = B(elem_list(1, l), elem_list(1, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+    A(il_1, il_1) = A(il_1, il_1) + alpha[il_1] / 2.0;
+    A(il_2, il_2) = A(il_2, il_2) + alpha[il_2] / 2.0;
 
-    B(elem_list(0, l), elem_list(1, l)) = B(elem_list(0, l), elem_list(1, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
-    B(elem_list(1, l), elem_list(0, l)) = B(elem_list(1, l), elem_list(0, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+    B(il_1, il_1) = B(il_1, il_1) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+    B(il_2, il_2) = B(il_2, il_2) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+
+    B(il_1, il_2) = B(il_1, il_2) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+    B(il_2, il_1) = B(il_2, il_1) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
   }
 
   // Populate F
@@ -358,7 +370,7 @@ int main(int argc, char **argv) {
   B.write("output/B.dat");
   write_vector(F, "output/F.dat");
 
-
+  // Create matrix system
   for (int j = 0; j < NUM_NODE; j++) {
     if (bc_types[j] == 1) {
       for (int i = 0; i < NUM_NODE; i++) {
@@ -383,6 +395,7 @@ int main(int argc, char **argv) {
   info = LAPACKE_dgesv(LAPACK_COL_MAJOR, LHS.getRows(), 1, LHS.dataPtr(),
                        A.getRows(), ipiv, F.data(), F.size());
 
+  // Extract boundary values
   for (int i = 0; i < NUM_NODE; i++) {
     if (bc_types[i] == 1) {
       u_boundary[i] = bc_values[i];
@@ -455,8 +468,8 @@ int main(int argc, char **argv) {
         double dGdx = (xk - xp) / pow(r, 2);
         double dGdy = (yk - yp) / pow(r, 2);
 
-        double ddxdGdn = -2 * (xk - xp) * drdn / (delta_s[l] * pow(r, 3)) + (y_elem(1, l) - y_elem(0, l)) / (delta_s[l] * pow(r, 3));
-        double ddydGdn = -2 * (yk - yp) * drdn / (delta_s[l] * pow(r, 3)) - (x_elem(1, l) - x_elem(0, l)) / (delta_s[l] * pow(r, 3));
+        double ddxdGdn = -2 * (xk - xp) * drdn / (delta_s[l] * pow(r, 3)) + (y_elem(1, l) - y_elem(0, l)) / (delta_s[l] * pow(r, 2));
+        double ddydGdn = -2 * (yk - yp) * drdn / (delta_s[l] * pow(r, 3)) - (x_elem(1, l) - x_elem(0, l)) / (delta_s[l] * pow(r, 2));
 
         for (int j = 0; j < 2; j++) {
           dudx_interior[p] = dudx_interior[p] + phi[j] * dudn_boundary[elem_list(j, l)] * dGdx * delta_s[l] / 2.0 * w;

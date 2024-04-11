@@ -22,6 +22,8 @@ u_mesh = nan(size(x_mesh));
 dudx_mesh = nan(size(x_mesh));
 dudy_mesh = nan(size(x_mesh));
 
+boundary = [cos(0:pi/24:2*pi)', sin(0:pi/24:2*pi)'];
+
 u_mesh(mask == 1) = u_interior;
 dudx_mesh(mask == 1) = dudx_interior;
 dudy_mesh(mask == 1) = dudy_interior;
@@ -40,12 +42,23 @@ xlim([1, 24]);
 
 figure(2);
 contourf(x_mesh, y_mesh, u_mesh, -1:0.2:1);
+hold on;
+plot(boundary(:, 1), boundary(:, 2), 'k', 'LineWidth', 2.5)
+hold off;
 axis equal
 colorbar
 title("Contour of Potential of Interior");
 xlabel("x");
 ylabel("y");
 
+
 figure(3);
-quiver(x_mesh, y_mesh, dudx_mesh, dudy_mesh, 10);
-axis equal
+quiver(x_mesh, y_mesh, dudx_mesh, dudy_mesh, 3, 'LineWidth', 2);
+hold on;
+plot(boundary(:, 1), boundary(:, 2), 'k', 'LineWidth', 2.5)
+hold off;
+ylim([-1.125, 1.125])
+axis equal;
+title("Gradient of Potential");
+xlabel("x")
+ylabel("y")
