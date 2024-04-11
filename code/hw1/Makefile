@@ -1,17 +1,21 @@
 COMPILER=g++
 FLAGS=-pedantic -lblas -llapacke
+OBJDIR=objects/
 
-out: hw1.o hw1_redo.o utils_205.o
-	$(COMPILER) -o out hw1_redo.o utils_205.o $(FLAGS)
+out: $(OBJDIR)hw1.o $(OBJDIR)hw1_elem.o $(OBJDIR)utils_205.o
+	$(COMPILER) -o out $(OBJDIR)hw1.o $(OBJDIR)utils_205.o $(FLAGS)
 
-hw1.o: hw1.cpp
+$(OBJDIR)hw1.o: hw1.cpp
 	$(COMPILER) -c hw1.cpp $(FLAGS)
+	mv hw1.o $(OBJDIR)
 
-hw1_redo.o: hw1_redo.cpp
-	$(COMPILER) -c hw1_redo.cpp $(FLAGS)
+$(OBJDIR)hw1_elem.o: hw1_elem.cpp
+	$(COMPILER) -c hw1_elem.cpp $(FLAGS)
+	mv hw1_elem.o $(OBJDIR)
 
-utils_205.o: utils_205.cpp
+$(OBJDIR)utils_205.o: utils_205.cpp
 	$(COMPILER) -c utils_205.cpp $(FLAGS)
+	mv utils_205.o $(OBJDIR)
 
 clean:
 	rm *.o out

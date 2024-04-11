@@ -4,7 +4,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 5
 #define NUM_SRC 1
-#define NUM_SAMP 721
+#define NUM_SAMP 716
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -289,54 +289,44 @@ int main(int argc, char **argv) {
   }
 
   // Populate A and B
-  for (int i = 0; i < NUM_NODE; i++) {
-    for (int l = 0; l < NUM_ELEM; l++) {
-      if (i == elem_list(0, l) || i == elem_list(1, l)) {
+  for (int l = 0; l < NUM_ELEM; l++) {
+    for (int k = 0; k < NUM_QUAD; k++) {
+      double zeta = quad_points[k];
+      double w = quad_weights[k];
+      std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
 
-        //A(elem_list(0, l), elem_list(0, l)) = A(elem_list(0, l), elem_list(0, l)) + alpha[elem_list(0, l)] / 2.0;
+      double xs = x_elem(0, l) * phi[0] + x_elem(1, l) * phi[1];
+      double ys = y_elem(0, l) * phi[0] + y_elem(1, l) * phi[1];
 
-        //A(elem_list(1, l), elem_list(1, l)) = A(elem_list(1, l), elem_list(1, l)) + alpha[elem_list(1, l)] / 2.0;
+      for (int i = 0; i < NUM_NODE; i++) {
 
-        B(elem_list(0, l), elem_list(0, l)) = B(elem_list(0, l), elem_list(0, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+        double x = node_pos(0, i);
+        double y = node_pos(1, i);
 
-        B(elem_list(0, l), elem_list(1, l)) = B(elem_list(0, l), elem_list(1, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+        if (elem_list(0, l) == i || elem_list(1, l) == i) {
+          continue;
+        }
+        double r = sqrt(pow(xs - x, 2) + pow(ys - y, 2));
+        double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xs - x) - (x_elem(1, l) - x_elem(0, l)) * (ys - y)) / (delta_s[l] * r);
 
-        B(elem_list(1, l), elem_list(1, l)) = B(elem_list(1, l), elem_list(1, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+        double G = -log(r);
+        double dGdn = -drdn / r;
 
-        B(elem_list(1, l), elem_list(0, l)) = B(elem_list(1, l), elem_list(0, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
-
-      }
-      else {
-        for (int k = 0; k < NUM_QUAD; k++) {
-          double zeta = quad_points[k];
-          double w = quad_weights[k];
-          std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
-
-          double x = node_pos(0, i);
-          double y = node_pos(1, i);
-
-          double xs = x_elem(0, l) * phi[0] + x_elem(1, l) * phi[1];
-          double ys = y_elem(0, l) * phi[0] + y_elem(1, l) * phi[1];
-
-          double r = sqrt(pow(xs - x, 2) + pow(ys - y, 2));
-          double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xs - x) - (x_elem(1, l) - x_elem(0, l)) * (ys - y)) / (delta_s[l] * r);
-
-          double G = -log(r);
-          double dGdn = -1 / r * drdn;
-
-          //std::cout << i << "," << l << "," << k << "," << zeta << "," << w << "," << phi[0] << "," << phi[1] << "," << x << "," << y << "," << x_elem(0, l) << "," << y_elem(0, l) << "," << x_elem(1, l) << "," << y_elem(1, l) << "," << xs << "," << ys << "," << delta_s[l] << "," << r << "," << drdn << "," << G << "," << dGdn << std::endl;
-
-          A(i, elem_list(0, l)) = A(i, elem_list(0, l)) + phi[0] * dGdn * delta_s[l] * w / 2.0;
-          A(i, elem_list(1, l)) = A(i, elem_list(1, l)) + phi[1] * dGdn * delta_s[l] * w / 2.0;
-
-          B(i, elem_list(0, l)) = B(i, elem_list(0, l)) + phi[0] * G * delta_s[l] * w / 2.0;
-          B(i, elem_list(1, l)) = B(i, elem_list(1, l)) + phi[1] * G * delta_s[l] * w / 2.0;
-
+        for (int j = 0; j < 2; j++) {
+          A(i, elem_list(j, l)) = A(i, elem_list(j, l)) + phi[j] * dGdn * delta_s[l] / 2.0 * w;
+          B(i, elem_list(j, l)) = B(i, elem_list(j, l)) + phi[j] * G * delta_s[l] / 2.0 * w;
         }
       }
-      //std::cout << i << ", " << l << ", " << elem_list(0, l) << ", " << elem_list(1, l) << ", " <<B(1,0) << std::endl;
     }
-    A(i,i) = A(i,i) + alpha[i];
+
+    A(elem_list(0, l), elem_list(0, l)) = A(elem_list(0, l), elem_list(0, l)) + alpha[elem_list(0, l)] / 2.0;
+    A(elem_list(1, l), elem_list(1, l)) = A(elem_list(1, l), elem_list(1, l)) + alpha[elem_list(1, l)] / 2.0;
+
+    B(elem_list(0, l), elem_list(0, l)) = B(elem_list(0, l), elem_list(0, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+    B(elem_list(1, l), elem_list(1, l)) = B(elem_list(1, l), elem_list(1, l)) + delta_s[l] / 2.0 * (1.5 - log(delta_s[l]));
+
+    B(elem_list(1, l), elem_list(0, l)) = B(elem_list(1, l), elem_list(0, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
+    B(elem_list(0, l), elem_list(1, l)) = B(elem_list(0, l), elem_list(1, l)) + delta_s[l] / 2.0 * (0.5 - log(delta_s[l]));
   }
 
   // Populate F
@@ -402,7 +392,9 @@ int main(int argc, char **argv) {
   write_vector(u, "u.dat");
   write_vector(dudn, "dudn.dat");
 
+
 }
+
 
 double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead) {
   double a = sqrt(pow(x_ahead - x, 2) + pow(y_ahead - y, 2));
