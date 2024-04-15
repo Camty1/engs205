@@ -8,7 +8,6 @@
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
-double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead);
 
 int main(int argc, char **argv) {
   // Matrix and vector definitions
