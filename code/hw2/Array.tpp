@@ -13,6 +13,16 @@ const T &Array<T>::operator()(size_t row, size_t col) const {
   return data[row + col * rows];
 }
 
+template <typename T> T *Array<T>::dataPtr() { return data.data(); }
+
+template <typename T> const size_t Array<T>::get_rows() const {
+  return rows;
+}
+
+template <typename T> const size_t Array<T>::get_cols() const {
+  return cols;
+}
+
 template <typename T>
 void Array<T>::check_slice(Slice slice) {
   size_t start = (slice.start == -1) ? 0 : slice.start;

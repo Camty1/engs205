@@ -22,6 +22,7 @@ public:
 
   T &operator()(size_t row, size_t col = 0);
   const T &operator()(size_t row, size_t col = 0) const;
+  T *dataPtr();
 
   const size_t get_rows() const;
   const size_t get_cols() const;

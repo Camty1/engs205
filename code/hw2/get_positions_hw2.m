@@ -1,8 +1,8 @@
-NUM_ROWS = 301;
-NUM_COLS = 301;
+NUM_ROWS = 31;
+NUM_COLS = 31;
 
 x = linspace(-1, 1, NUM_COLS);
-y = linspace(0, 1, NUM_ROWS);
+y = linspace(-1, 0, NUM_ROWS);
 x_shift = (x(2:end) + x(1:end-1)) / 2;
 y_shift = (y(2:end) + y(1:end-1)) / 2;
 
@@ -42,6 +42,7 @@ end
 mask_2 = ones(size(x_mesh));
 
 mask_2(r_mesh >= 0.95) = 0;
+mask_2(y_mesh >= -0.025) = 0;
 
 mask = mask & mask_2;
 

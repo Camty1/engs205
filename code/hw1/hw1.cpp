@@ -1,10 +1,10 @@
 #include "hw1.hpp"
 #include <lapacke.h>
-#define NUM_NODE 24
-#define NUM_ELEM 24
+#define NUM_NODE 40
+#define NUM_ELEM 40
 #define NUM_QUAD 4
-#define NUM_SRC 1
-#define NUM_SAMP 300
+#define NUM_SRC 0
+#define NUM_SAMP 10201
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -146,33 +146,35 @@ int main(int argc, char **argv) {
   }
 
   // Sources
-  std::ifstream source_file(source_filename);
+  if (NUM_SRC > 0) {
+    std::ifstream source_file(source_filename);
 
-  if (!source_file.is_open()) {
-    std::cerr << "Could not open source file" << std::endl;
-    return EXIT_FAILURE;
-  }
+    if (!source_file.is_open()) {
+      std::cerr << "Could not open source file" << std::endl;
+      return EXIT_FAILURE;
+    }
 
-  for (int i = 0; i < NUM_SRC; i++) {
-    std::string line;
-    std::string token;
-    getline(source_file, line);
-    std::istringstream lineStream(line);
+    for (int i = 0; i < NUM_SRC; i++) {
+      std::string line;
+      std::string token;
+      getline(source_file, line);
+      std::istringstream lineStream(line);
 
-    // Source number, do nothing
-    getline(lineStream, token, ',');
+      // Source number, do nothing
+      getline(lineStream, token, ',');
 
-    // Source x pos
-    getline(lineStream, token, ',');
-    source_pos(0, i) = std::stod(token);
+      // Source x pos
+      getline(lineStream, token, ',');
+      source_pos(0, i) = std::stod(token);
 
-    // Source y pos
-    getline(lineStream, token, ',');
-    source_pos(1, i) = std::stod(token);
+      // Source y pos
+      getline(lineStream, token, ',');
+      source_pos(1, i) = std::stod(token);
 
-    // Source value
-    getline(lineStream, token, ',');
-    source_values[i] = std::stod(token);
+      // Source value
+      getline(lineStream, token, ',');
+      source_values[i] = std::stod(token);
+    }
   }
 
   // Quadrature
@@ -287,8 +289,9 @@ int main(int argc, char **argv) {
     }
 
     alpha[i] = calc_alpha(x_behind, y_behind, x, y, x_ahead, y_ahead);
-
   }
+
+  print_vector(alpha);
 
   // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
@@ -503,11 +506,15 @@ int main(int argc, char **argv) {
 }
 
 double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead) {
-  double a = sqrt(pow(x_ahead - x, 2) + pow(y_ahead - y, 2));
-  double b = sqrt(pow(x - x_behind, 2) + pow(y - y_behind, 2));
-  double c = sqrt(pow(x_ahead - x_behind, 2) + pow(y_ahead - y_behind, 2));
+  std::vector<double> A({x_behind - x, y_behind - y});
+  std::vector<double> B({x_ahead - x, y_ahead - y});
 
-  return acos((pow(a, 2) + pow(b, 2) - pow(c, 2)) / (2 * a * b));
+  double theta = acos((A[0] * B[0] + A[1] * B[1]) / sqrt((pow(A[0], 2) + pow(A[1], 2)) * (pow(B[0], 2) + pow(B[1], 2))));
+
+  double cross = A[0] * B[1] - A[1] * B[0];
+
+  return cross <= 0 ? theta : 2.0 * PI - theta;
+
 }
 
 template <typename T> void print_vector(std::vector<T> vec) {

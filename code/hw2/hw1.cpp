@@ -4,7 +4,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 4
 #define NUM_SRC 1
-#define NUM_SAMP 300
+#define NUM_SAMP 640
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -57,13 +57,13 @@ int main(int argc, char **argv) {
   std::fill(dudy_interior.begin(), dudy_interior.end(), 0.0);
 
   // Filename definitions
-  std::string pos_filename = "problem_definition/hw1.nod";
-  std::string elem_filename = "problem_definition/hw1.ele";
-  std::string bc_filename = "problem_definition/hw1.bcs";
-  std::string source_filename = "problem_definition/hw1.src";
+  std::string pos_filename = "problem_definition/hw2.nod";
+  std::string elem_filename = "problem_definition/hw2.ele";
+  std::string bc_filename = "problem_definition/hw2.bcs";
+  std::string source_filename = "problem_definition/hw2.src";
   std::string quad_filename =
       "quadrature/deg_" + std::to_string(NUM_QUAD) + ".gqd";
-  std::string samp_filename = "problem_definition/sample_points.nod";
+  std::string samp_filename = "problem_definition/sample_points_hw2.nod";
 
   // Read from files
   // Nodes
@@ -404,8 +404,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  write_vector(u_boundary, "output/u_boundary.dat");
-  write_vector(dudn_boundary, "output/dudn_boundary.dat");
+  write_vector(u_boundary, "output/u_boundary_hw2c.dat");
+  write_vector(dudn_boundary, "output/dudn_boundary_hw2c.dat");
 
 
   // Get interior samples
@@ -495,9 +495,9 @@ int main(int argc, char **argv) {
     dudy_interior[p] = dudy_interior[p] / (2 * PI);
   }
 
-  write_vector(u_interior, "output/u_interior.dat");
-  write_vector(dudx_interior, "output/dudx_interior.dat");
-  write_vector(dudy_interior, "output/dudy_interior.dat");
+  write_vector(u_interior, "output/u_interior_hw2c.dat");
+  write_vector(dudx_interior, "output/dudx_interior_hw2c.dat");
+  write_vector(dudy_interior, "output/dudy_interior_hw2c.dat");
 
 }
 
