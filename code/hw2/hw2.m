@@ -54,8 +54,6 @@ u_left_corner = interp2(x_mesh, y_mesh, u_mesh, left_corner_x, left_corner_y);
 u_corner_right_corner = interp2(x_mesh, y_mesh, u_corner_mesh, right_corner_x, right_corner_y);
 u_corner_left_corner = interp2(x_mesh, y_mesh, u_corner_mesh, left_corner_x, left_corner_y);
 
-cmap = colormap(parula(15));
-
 close all;
 figure(1);
 plot(u_boundary);
@@ -69,8 +67,7 @@ legend("Boundary Potential", "Boundary Flux", "location", "northeast");
 xlim([1, 24]);
 
 figure(2);
-contourf(x_mesh, y_mesh, u_mesh, 100, 'EdgeAlpha', 0);
-colormap(cmap);
+contourf(x_mesh, y_mesh, u_mesh);
 hold on;
 plot(boundary(:, 1), boundary(:, 2), 'k', 'LineWidth', 2.5)
 hold off;
@@ -114,8 +111,7 @@ legend("Boundary Potential", "Boundary Flux Before Corner", "Boundary Flux After
 xlim([1, 24]);
 
 figure(6);
-contourf(x_mesh, y_mesh, u_corner_mesh, "EdgeAlpha", 0);
-colormap(cmap);
+contourf(x_mesh, y_mesh, u_corner_mesh);
 hold on;
 plot(boundary(:, 1), boundary(:, 2), 'k', 'LineWidth', 2.5)
 hold off;

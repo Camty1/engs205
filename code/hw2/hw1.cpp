@@ -4,7 +4,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 4
 #define NUM_SRC 1
-#define NUM_SAMP 32410
+#define NUM_SAMP 150
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 

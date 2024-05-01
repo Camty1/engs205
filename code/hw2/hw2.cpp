@@ -3,7 +3,7 @@
 #define NUM_ELEM 24
 #define NUM_QUAD 4
 #define NUM_SRC 1
-#define NUM_SAMP 32410
+#define NUM_SAMP 150
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 
@@ -323,7 +323,6 @@ int main(int argc, char** argv) {
     B(il_1, 2 * il_2) = B(il_1, 2 * il_2) + elem_lengths(l) / 2.0 * (0.5 - log(elem_lengths(l)));
     B(il_2, 2 * il_1 + 1) = B(il_2, 2 * il_1 + 1) + elem_lengths(l) / 2.0 * (0.5 - log(elem_lengths(l)));
 
-    std::cout << 2*il_1 + 1 << ", " << 2*il_2 << std::endl;
   }
 
   // Populate F
@@ -388,19 +387,19 @@ int main(int argc, char** argv) {
       sladek_bcs(j) = dudn_1;
 
       for (int i = 0; i < NUM_NODE; i++) {
-        LHS(i, j) = B(i, 2 * j + 1);
+        LHS(i, j) = -B(i, 2 * j + 1);
         RHS(i) = RHS(i) - A(i, j) * node_bc_vals(0, j) + B(i, 2 * j) * dudn_1;
       }
     }
     else if (node_bc_type(j) == 12) {
       for (int i = 0; i < NUM_NODE; i++) {
-        LHS(i, j) = B(i, 2 * j);
+        LHS(i, j) = -B(i, 2 * j);
         RHS(i) = RHS(i) - A(i, j) * node_bc_vals(0, j) + B(i, 2 * j + 1) * node_bc_vals(1, j);
       }
     }
     else if (node_bc_type(j) == 21) {
       for (int i = 0; i < NUM_NODE; i++) {
-        LHS(i, j) = B(i, 2 * j + 1);
+        LHS(i, j) = -B(i, 2 * j + 1);
         RHS(i) = RHS(i) - A(i, j) * node_bc_vals(1, j) + B(i, 2 * j) * node_bc_vals(0, j);
       }
 
