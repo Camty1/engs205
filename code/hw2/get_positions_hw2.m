@@ -1,5 +1,5 @@
-NUM_ROWS = 31;
-NUM_COLS = 31;
+NUM_ROWS = 151;
+NUM_COLS = 301;
 
 x = linspace(-1, 1, NUM_COLS);
 y = linspace(-1, 0, NUM_ROWS);

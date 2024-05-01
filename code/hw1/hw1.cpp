@@ -291,8 +291,6 @@ int main(int argc, char **argv) {
     alpha[i] = calc_alpha(x_behind, y_behind, x, y, x_ahead, y_ahead);
   }
 
-  print_vector(alpha);
-
   // Populate A and B
   for (int i = 0; i < NUM_NODE; i++) {
     double x = node_pos(0, i);
@@ -322,6 +320,8 @@ int main(int argc, char **argv) {
         // Calculate functions using points
         double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
         double drdn = ((y_elem(1, l) - y_elem(0, l)) * (xk - x) - (x_elem(1, l) - x_elem(0, l)) * (yk - y)) / (delta_s[l] * r);
+
+        std::cout << drdn << std::endl;
 
         double G = -log(r);
         double dGdn = -1 / r * drdn;
