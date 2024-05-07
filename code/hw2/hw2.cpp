@@ -1,9 +1,9 @@
 #include "hw2.hpp"
-#define NUM_NODE 24
-#define NUM_ELEM 24
+#define NUM_NODE 48
+#define NUM_ELEM 48
 #define NUM_QUAD 4
 #define NUM_SRC 1
-#define NUM_SAMP 150
+#define NUM_SAMP 32410
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 

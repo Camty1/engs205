@@ -1,4 +1,4 @@
-NUM_NODE = 24;
+NUM_NODE = 48;
 node_pos = readmatrix("problem_definition/hw2.nod", 'FileType', 'text');
 x_boundary = node_pos(:, 2);
 y_boundary = node_pos(:, 3);
@@ -64,7 +64,7 @@ title("Boundary Potential and Flux by Node");
 xlabel("Node (n)");
 ylabel("Magnitude");
 legend("Boundary Potential", "Boundary Flux", "location", "northeast");
-xlim([1, 24]);
+xlim([1, NUM_NODE]);
 
 figure(2);
 contourf(x_mesh, y_mesh, u_mesh);
@@ -108,7 +108,7 @@ title("Boundary Potential and Flux by Node Sládek and Sládek");
 xlabel("Node (n)");
 ylabel("Magnitude");
 legend("Boundary Potential", "Boundary Flux Before Corner", "Boundary Flux After Corner", "location", "northeast");
-xlim([1, 24]);
+xlim([1, NUM_NODE]);
 
 figure(6);
 contourf(x_mesh, y_mesh, u_corner_mesh);
