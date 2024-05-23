@@ -6,7 +6,7 @@
 #define NUM_OUTER_ELEM 48
 #define NUM_ELEM NUM_INNER_ELEM + NUM_OUTER_ELEM
 #define NUM_QUAD 10
-#define NUM_SAMP 936
+#define NUM_SAMP 3816
 #define PRINT_INPUTS false
 #define PI 3.1415926535897932384626433
 #define STRUVE_ORDER 20
@@ -36,15 +36,26 @@ int main(int argc, char **argv) {
     Array<std::complex<double>> B2(NUM_NODE, NUM_NODE);
 
     Array<std::complex<double>> LHS(2 * NUM_INNER_NODE + NUM_OUTER_NODE, 2 * NUM_INNER_NODE + NUM_OUTER_NODE);
+    Array<std::complex<double>> LHS_big(4 * NUM_INNER_NODE + NUM_OUTER_NODE, 4 * NUM_INNER_NODE + NUM_OUTER_NODE);
     Array<std::complex<double>> RHS(2 * NUM_INNER_NODE + NUM_OUTER_NODE);
+    Array<std::complex<double>> RHS_big(4 * NUM_INNER_NODE + NUM_OUTER_NODE);
 
-    A1.fill(std::complex<double>(0, 0));
-    A2.fill(std::complex<double>(0, 0));
-    B1.fill(std::complex<double>(0, 0));
-    B2.fill(std::complex<double>(0, 0));
-    LHS.fill(std::complex<double>(0, 0));
-    RHS.fill(std::complex<double>(0, 0));
+    A1.fill(std::complex<double>(0.0, 0.0));
+    A2.fill(std::complex<double>(0.0, 0.0));
+    B1.fill(std::complex<double>(0.0, 0.0));
+    B2.fill(std::complex<double>(0.0, 0.0));
+    LHS.fill(std::complex<double>(0.0, 0.0));
+    LHS_big.fill(std::complex<double>(0.0, 0.0));
+    RHS.fill(std::complex<double>(0.0, 0.0));
+    RHS_big.fill(std::complex<double>(0.0, 0.0));
 
+    Array<std::complex<double>> u1(NUM_INNER_NODE);
+    Array<std::complex<double>> q1(NUM_INNER_NODE);
+    Array<std::complex<double>> u2(NUM_NODE);
+    Array<std::complex<double>> q2(NUM_NODE);
+
+    Array<std::complex<double>> u_sample(NUM_SAMP);
+    u_sample.fill(std::complex<double>(0.0, 0.0));
 
     std::string node_filename = "problem_definition/hw3.nod";
     std::string bc_filename = "problem_definition/hw3.bcs";
@@ -244,56 +255,70 @@ int main(int argc, char **argv) {
             else {
                 throw std::logic_error("Element " + std::to_string(l) + " is either backwards or has the boundary incorrectly described for region 1.\n");
             }
-            if (i == il1 || i == il2) {
-                continue;
-            }
 
+            std::vector<double> x_elem({node_pos(0, il1), node_pos(0, il2)});
+            std::vector<double> y_elem({node_pos(1, il1), node_pos(1, il2)});
             std::vector<double> elem_normal({(node_pos(1, il2) - node_pos(1, il1)) / elem_lengths(l), -(node_pos(0, il2) - node_pos(0, il1)) / elem_lengths(l)});
 
             for (int k = 0; k < NUM_QUAD; k++) {
                 double zeta = quad_points(k);
                 double w = quad_weights(k);
 
-                std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
+                if (i == il1 || i == il2) {
+                    double a = 0.25;
+                    double b = il1 == i ? 0.75 : -0.75;
+                    double c = 0.75;
+                    double d = -b;
 
-                double xk = node_pos(0, il1) * phi[0] + node_pos(0, il2) * phi[1];
-                double yk = node_pos(1, il1) * phi[0] + node_pos(1, il2) * phi[1];
+                    double nu = a * pow(zeta, 3) + b * pow(zeta, 2) + c * zeta + d;
+                    double dnu = 3 * a * pow(zeta, 2) + 2 * b * zeta + c;
 
-                double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
-                double drdn = (elem_normal[0] * (xk - x) + elem_normal[1] * (yk - y)) / r;
+                    std::vector<double> phi({(1 - nu) / 2, (1 + nu) / 2});
 
-                std::complex<double> G = std::complex<double>(0, 1.0 / (4.0 * k1)) * hankel1(0, k1 * r);
-                std::complex<double> dGdr = std::complex<double>(0, -1.0 / (4.0 * k1)) * hankel1(1, k1 * r);
-                std::complex<double> dGdn = dGdr * drdn;
+                    double xk = 0.0;
+                    double yk = 0.0;
 
-                A1(i, il1) = A1(i, il1) + phi[0] * dGdn * elem_lengths(l) * w / 2.0;
-                A1(i, il2) = A1(i, il2) + phi[1] * dGdn * elem_lengths(l) * w / 2.0;
+                    for (int j = 0; j < 2; j++) {
+                        xk += phi[j] * x_elem[j];
+                        yk += phi[j] * y_elem[j];
+                    }
 
-                B1(i, il1) = B1(i, il1) + phi[0] * G * elem_lengths(l) * w / 2.0;
-                B1(i, il2) = B1(i, il2) + phi[1] * G * elem_lengths(l) * w / 2.0;
+                    double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
+                    std::complex<double> G = std::complex<double>(0.0, 1.0) / 4.0 * hankel1(0, k1 * r);
+
+                    B1(i, il1) = B1(i, il1) + w * elem_lengths(l) / 2.0 * phi[0] * G * dnu;
+                    B1(i, il2) = B1(i, il2) + w * elem_lengths(l) / 2.0 * phi[1] * G * dnu;
+                }
+                else {
+                    std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
+
+                    double xk = 0.0;
+                    double yk = 0.0;
+
+                    for (int j = 0; j < 2; j++) {
+                        xk += phi[j] * x_elem[j];
+                        yk += phi[j] * y_elem[j];
+                    }
+
+                    double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
+                    double drdn = (elem_normal[0] * (xk - x) + elem_normal[1] * (yk - y)) / r;
+                    std::complex<double> G = std::complex<double>(0, 1.0) / 4.0 * hankel1(0, k1 * r);
+                    std::complex<double> dGdr = std::complex<double>(0, -1.0) * k1 / 4.0 * hankel1(1, k1 * r);
+                    std::complex<double> dGdn = dGdr * drdn;
+
+                    std::complex<double> a1 = phi[0] * dGdn * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> a2 = phi[1] * dGdn * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> b1 = phi[0] * G * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> b2 = phi[1] * G * elem_lengths(l) / 2.0 * w;
+
+                    A1(i, il1) = A1(i, il1) + a1;
+                    A1(i, il2) = A1(i, il2) + a2;
+                    B1(i, il1) = B1(i, il1) + b1;
+                    B1(i, il2) = B1(i, il2) + b2;
+                }
             }
         }
         A1(i, i) = A1(i, i) + alpha / (2.0 * PI);
-    }
-
-    for (int l = 0; l < NUM_INNER_ELEM; l++) {
-        int il1, il2;
-        if (elem_boundary(0, l) == 1) {
-            il1 = elem_list(0, l);
-            il2 = elem_list(1, l);
-        }
-        else {
-            throw std::logic_error("Element " + std::to_string(l) + " is either backwards or has the boundary incorrectly described for region 1.\n");
-        }
-        std::complex<double> g1, g2;
-
-        g1 = std::complex<double>(0, 1.0 / (4.0 * k1)) * (int_hankel1(k1 * elem_lengths(l)) - hankel1(1, k1 * elem_lengths(l)));
-        g2 = std::complex<double>(0, 1.0 / (4.0 * k1)) * hankel1(1, k1 * elem_lengths(l));
-
-        B1(il1, il1) = B1(il1, il1) + g1;
-        B1(il1, il2) = B1(il1, il2) + g2;
-        B1(il2, il2) = B1(il2, il2) + g1;
-        B1(il2, il1) = B1(il2, il1) + g2;
     }
 
     A1.write("output/A1.mat");
@@ -336,62 +361,70 @@ int main(int argc, char **argv) {
             else {
                 throw std::logic_error("Element " + std::to_string(l) + " has its boundaries defined incorrectly.\n");
             }
-            // Analytical integration
-            if (i == il1 || i == il2) {
-                continue;
-            }
 
+            std::vector<double> x_elem({node_pos(0, il1), node_pos(0, il2)});
+            std::vector<double> y_elem({node_pos(1, il1), node_pos(1, il2)});
             std::vector<double> elem_normal({(node_pos(1, il2) - node_pos(1, il1)) / elem_lengths(l), -(node_pos(0, il2) - node_pos(0, il1)) / elem_lengths(l)});
 
             for (int k = 0; k < NUM_QUAD; k++) {
                 double zeta = quad_points(k);
                 double w = quad_weights(k);
 
-                std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
+                if (i == il1 || i == il2) {
+                    double a = 0.25;
+                    double b = il1 == i ? 0.75 : -0.75;
+                    double c = 0.75;
+                    double d = -b;
 
-                double xk = node_pos(0, il1) * phi[0] + node_pos(0, il2) * phi[1];
-                double yk = node_pos(1, il1) * phi[0] + node_pos(1, il2) * phi[1];
+                    double nu = a * pow(zeta, 3) + b * pow(zeta, 2) + c * zeta + d;
+                    double dnu = 3 * a * pow(zeta, 2) + 2 * b * zeta + c;
 
-                double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
-                double drdn = (elem_normal[0] * (xk - x) + elem_normal[1] * (yk - y)) / r;
+                    std::vector<double> phi({(1 - nu) / 2, (1 + nu) / 2});
 
-                std::complex<double> G = std::complex<double>(0, 1.0 / (4.0 * k2)) * hankel1(0, k2 * r);
-                std::complex<double> dGdr = std::complex<double>(0, -1.0 / (4.0 * k2)) * hankel1(1, k2 * r);
-                std::complex<double> dGdn = dGdr * drdn;
+                    double xk = 0.0;
+                    double yk = 0.0;
 
-                A2(i, il1) = A2(i, il1) + phi[0] * dGdn * elem_lengths(l) * w / 2.0;
-                A2(i, il2) = A2(i, il2) + phi[1] * dGdn * elem_lengths(l) * w / 2.0;
+                    for (int j = 0; j < 2; j++) {
+                        xk += phi[j] * x_elem[j];
+                        yk += phi[j] * y_elem[j];
+                    }
 
-                B2(i, il1) = B2(i, il1) + phi[0] * G * elem_lengths(l) * w / 2.0;
-                B2(i, il2) = B2(i, il2) + phi[1] * G * elem_lengths(l) * w / 2.0;
+                    double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
+                    std::complex<double> G = std::complex<double>(0.0, 1.0) / 4.0 * hankel1(0, k2 * r);
+
+                    B2(i, il1) = B2(i, il1) + w * elem_lengths(l) / 2.0 * phi[0] * G * dnu;
+                    B2(i, il2) = B2(i, il2) + w * elem_lengths(l) / 2.0 * phi[1] * G * dnu;
+                }
+                else {
+                    std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
+
+                    double xk = 0.0;
+                    double yk = 0.0;
+
+                    for (int j = 0; j < 2; j++) {
+                        xk += phi[j] * x_elem[j];
+                        yk += phi[j] * y_elem[j];
+                    }
+
+                    double r = sqrt(pow(xk - x, 2) + pow(yk - y, 2));
+                    double drdn = (elem_normal[0] * (xk - x) + elem_normal[1] * (yk - y)) / r;
+                    std::complex<double> G = std::complex<double>(0, 1.0) / 4.0 * hankel1(0, k2 * r);
+                    std::complex<double> dGdr = std::complex<double>(0, -1.0) * k2 / 4.0 * hankel1(1, k2 * r);
+                    std::complex<double> dGdn = dGdr * drdn;
+
+                    std::complex<double> a1 = phi[0] * dGdn * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> a2 = phi[1] * dGdn * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> b1 = phi[0] * G * elem_lengths(l) / 2.0 * w;
+                    std::complex<double> b2 = phi[1] * G * elem_lengths(l) / 2.0 * w;
+
+                    A2(i, il1) = A2(i, il1) + a1;
+                    A2(i, il2) = A2(i, il2) + a2;
+                    B2(i, il1) = B2(i, il1) + b1;
+                    B2(i, il2) = B2(i, il2) + b2;
+                }
             }
         }
         A2(i, i) = A2(i, i) + alpha / (2.0 * PI);
-    }
-
-    for (int l = 0; l < NUM_ELEM; l++) {
-        int il1, il2;
-        if (elem_boundary(0, l) == 2) {
-            il1 = elem_list(0, l);
-            il2 = elem_list(1, l);
-        }
-        // Switch direction of element to have normal be on the right
-        else if (elem_boundary(1, l) == 2) {
-            il1 = elem_list(1, l);
-            il2 = elem_list(0, l);
-        }
-        else {
-            throw std::logic_error("Element " + std::to_string(l) + " has its boundaries defined incorrectly.\n");
-        }
-        std::complex<double> g1, g2;
-
-        g1 = std::complex<double>(0, 1.0 / (4.0 * k2)) * (int_hankel1(k2 * elem_lengths(l)) - hankel1(1, k2 * elem_lengths(l)));
-        g2 = std::complex<double>(0, 1.0 / (4.0 * k2)) * hankel1(1, k2 * elem_lengths(l));
-
-        B2(il1, il1) = B2(il1, il1) + g1;
-        B2(il1, il2) = B2(il1, il2) + g2;
-        B2(il2, il2) = B2(il2, il2) + g1;
-        B2(il2, il1) = B2(il2, il1) + g2;
     }
 
     A2.write("output/A2.mat");
@@ -448,12 +481,106 @@ int main(int argc, char **argv) {
     LHS.write("output/LHS.mat");
     RHS.write("output/RHS.mat");
 
-
     lapack_int info;
     lapack_int *ipiv = new lapack_int[LHS.get_rows()];
     info = LAPACKE_zgesv(LAPACK_COL_MAJOR, LHS.get_rows(), 1, reinterpret_cast <__complex__ double*> (LHS.dataPtr()), LHS.get_rows(), ipiv, reinterpret_cast <__complex__ double*> (RHS.dataPtr()), RHS.get_rows());
 
-    RHS.print();
+    if (info != 0) {
+        throw std::logic_error("Matrix failed to solve with code: " + std::to_string(info));
+    }
+
+    for (int i = 0; i < NUM_INNER_NODE; i++) {
+        u1(i) = RHS(i);
+        u2(i) = RHS(i);
+        q1(i) = RHS(NUM_INNER_NODE + i);
+        q2(i) = -RHS(NUM_INNER_NODE + i);
+    }
+
+    for (int i = 0; i < NUM_OUTER_NODE; i++) {
+        u2(NUM_INNER_NODE + i) = std::complex<double>(bc_val(NUM_INNER_NODE + i), 0.0);
+        q2(NUM_INNER_NODE + i) = RHS(2 * NUM_INNER_NODE + i);
+    }
+
+    u1.write("output/u1_boundary.dat");
+    u2.write("output/u2_boundary.dat");
+    q1.write("output/q1_boundary.dat");
+    q2.write("output/q2_boundary.dat");
+
+    // Populate sample positions
+    for (int s = 0; s < NUM_SAMP; s++) {
+        double xs = sample_pos(0, s);
+        double ys = sample_pos(1, s);
+        int reg = sample_region(s);
+        double k_val = reg == 1 ? k1 : k2;
+
+        for (int l = 0; l < NUM_ELEM; l++) {
+            double il1, il2;
+            // Outward pointing normal
+            if (elem_boundary(0, l) == reg) {
+                il1 = elem_list(0, l);
+                il2 = elem_list(1, l);
+            }
+            // Inward pointing normal (switch elem direction)
+            else if (elem_boundary(1, l) == reg) {
+                il1 = elem_list(1, l);
+                il2 = elem_list(0, l);
+            }
+            // Element does not border region
+            else {
+                continue;
+            }
+            std::vector<double> x_elem({node_pos(0, il1), node_pos(0, il2)});
+            std::vector<double> y_elem({node_pos(1, il1), node_pos(1, il2)});
+            std::vector<double> elem_normal({(node_pos(1, il2) - node_pos(1, il1)) / elem_lengths(l), -(node_pos(0, il2) - node_pos(0, il1)) / elem_lengths(l)});
+
+            // Gauss quadrature
+            for (int k = 0; k < NUM_QUAD; k++) {
+                double zeta = quad_points(k);
+                double w = quad_weights(k);
+
+                std::vector<double> phi({(1 - zeta) / 2.0, (1 + zeta) / 2.0});
+
+                double xk = 0.0;
+                double yk = 0.0;
+
+                for (int j = 0; j < 2; j++) {
+                    xk += phi[j] * x_elem[j];
+                    yk += phi[j] * y_elem[j];
+                }
+
+                double r = sqrt(pow(xk - xs, 2) + pow(yk - ys, 2));
+                double drdn = (elem_normal[0] * (xk - xs) + elem_normal[1] * (yk - ys)) / r;
+
+                std::complex<double> G = std::complex<double>(0.0, 1.0) / 4.0 * hankel1(0, k_val * r);
+                std::complex<double> dGdr = std::complex<double>(0.0, -1.0) * k_val / 4.0 * hankel1(1, k_val * r);
+                std::complex<double> dGdn = dGdr * drdn;
+
+                std::vector<std::complex<double>> u(2);
+                std::vector<std::complex<double>> q(2);
+
+                if (reg == 1) {
+                    u[0] = u1(il1);
+                    u[1] = u1(il2);
+                    q[0] = q1(il1);
+                    q[1] = q1(il2);
+                }
+                else {
+                    u[0] = u2(il1);
+                    u[1] = u2(il2);
+                    q[0] = q2(il1);
+                    q[1] = q2(il2);
+                }
+                u_sample(s) = u_sample(s) - u[0] * phi[0] * dGdn * elem_lengths(l) / 2.0 * w;
+                u_sample(s) = u_sample(s) - u[1] * phi[1] * dGdn * elem_lengths(l) / 2.0 * w;
+
+                u_sample(s) = u_sample(s) + q[0] * phi[0] * G * elem_lengths(l) / 2.0 * w;
+                u_sample(s) = u_sample(s) + q[1] * phi[1] * G * elem_lengths(l) / 2.0 * w;
+            }
+        }
+    }
+
+    u_sample.write("output/u_sample.dat");
+
 }
 
 double calc_alpha(double x_behind, double y_behind, double x, double y, double x_ahead, double y_ahead) {
@@ -473,50 +600,4 @@ std::complex<double> hankel1(double nu, double x) {
     double Y = std::cyl_neumann(nu, x);
 
     return std::complex<double>(J, Y);
-}
-
-int factorial(int n) {
-    int out = 1;
-    for (int i = 2; i <= n; i++) {
-        out *= i;
-    }
-
-    return out;
-}
-
-int factorial2(int n) {
-    int out = 1;
-    for (int i = n; i > 1; i -= 2) {
-        out *= i;
-    }
-
-    return out;
-}
-
-double struve(double nu, double x) {
-    double out = 0;
-    if (nu == 0) {
-        for (int i = 0; i <= STRUVE_ORDER; i++) {
-            double val = 2.0 / PI * pow(x, 2*i+1) / pow((double) factorial2(2*i+1), 2);
-
-            out += i % 2 == 0 ? val : -val;
-        }
-    }
-    else if (nu == 1) {
-        for (int i = 1; i <= STRUVE_ORDER; i++) {
-            double val = 2.0 / PI * pow(x, 2*i) / (pow((double) factorial2(2*i-1), 2) * ((double) 2 * i + 1));
-
-            out += i % 2 == 0 ? -val : val;
-        }
-    }
-    else {
-        throw std::logic_error("nu < 1 not implemented yet\n");
-    }
-
-    return out;
-
-}
-
-std::complex<double> int_hankel1(double x) {
-    return x * hankel1(0, x) + PI / 2.0 * x * (struve(0, x) * hankel1(1, x) - struve(1, x) * hankel1(0, x));
 }
