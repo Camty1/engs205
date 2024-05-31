@@ -7,7 +7,8 @@ error = zeros(4, length(sizes));
 rmserror = zeros(size(error));
 
 for i=1:length(sizes)
-    x = linspace(0, 2*pi, sizes(i));
+    x = linspace(0, 2*pi, sizes(i)+1);
+    x = x(1:end-1);
     dx(i) = x(2) - x(1);
 
     analytical = readmatrix(['output/analytical_' num2str(sizes(i)) '.dat']);

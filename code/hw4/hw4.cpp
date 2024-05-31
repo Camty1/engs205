@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     fftw_plan p_forward_hanning = fftw_plan_dft_r2c_1d(n, hanning_values.dataPtr(), (fftw_complex*) spec_values.dataPtr(), FFTW_ESTIMATE);
     fftw_plan p_inverse_hanning = fftw_plan_dft_c2r_1d(n, (fftw_complex*) spec_values.dataPtr(), hanning_values.dataPtr(), FFTW_ESTIMATE);
 
-    double dx = 2.0 * PI / (double) (n - 1);
+    double dx = 2.0 * PI / (double) (n);
 
     hanning_window(n, &hanning_window_values);
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i < n - 1; i++) {
         finite_diff_values(i) = (func_values(i+1) - func_values(i-1)) / (2.0 * dx);
     }
-    finite_diff_values(0) = (func_values(1) - func_values(n-2)) / (2.0 * dx);
+    finite_diff_values(0) = (func_values(1) - func_values(n-1)) / (2.0 * dx);
     finite_diff_values(n-1) = finite_diff_values(0);
 
     finite_diff_values.write("output/fd_" + std::to_string(n) + ".dat");
