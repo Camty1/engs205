@@ -3,7 +3,7 @@ K = 4;
 c = 4;
 v = 0.2;
 
-burger_bounds = 50;
+burger_bounds = 5000;
 
 for N=Ns
     phi_eqn = @(x, t, n) exp(-(x - (2*n+1)*pi).^2 ./ (4 * v * t));

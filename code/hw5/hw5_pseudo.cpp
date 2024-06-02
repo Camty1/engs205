@@ -3,7 +3,7 @@
 #define c 4.0
 #define v 0.2
 #define PI 3.1415926535897932384626433
-#define TF PI / 4.0
+#define TF PI / 8.0
 
 int main(int argc, char** argv) {
     int N = 8;
@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
     double dt = 8.0 / v / pow(N, 2);
     double m = TF / dt;
-    int timesteps = ceil(m) * 20;
+    int timesteps = ceil(m) * 20000;
     dt = TF / (double) timesteps;
 
     std::vector<std::complex<double>> u(N, 0.0);
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
         u_out[j] = u[j].real() / (double) N;
     }
 
-    write_real_vector(N, u_out.data(), "output/uf_pseudo_pi_4_" + std::to_string(N) + ".dat");
+    write_real_vector(N, u_out.data(), "output/uf_pseudo_" + std::to_string(N) + ".dat");
 
 }
 

@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
     double dt = 8.0 / v / pow(N, 2);
     double m = TF / dt;
-    int timesteps = ceil(m) * 20;
+    int timesteps = ceil(m) * 20000;
     dt = TF / (double) timesteps;
 
     std::vector<std::complex<double>> u(N, 0.0);
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
         u_out[j] = u[j].real();
     }
 
-    write_real_vector(N, u_out.data(), "output/uf_coll_pi_4_" + std::to_string(N) + ".dat");
+    write_real_vector(N, u_out.data(), "output/uf_coll_" + std::to_string(N) + ".dat");
 }
 
 void print_real_vector(int n, double* vec) {
