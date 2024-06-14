@@ -1,18 +1,16 @@
+%% ENGS 205 Chebyshev Derivative Test
+% Cameron Wolfe
+
+%% Setup
 u_analytical = @(t, x) exp(-pi^2 * t) .* exp(sin(pi * x));
 dudx0_analytical = @(x) pi * exp(sin(pi * x)) .* cos(pi * x);
 
 x = -1:.02:1;
-t = 0:1/(100 * pi^2):10/pi^2;
 
 u0 = u_analytical(0, x);
 dudx0 = dudx0_analytical(x);
 
-[t_mesh, x_mesh] = meshgrid(t, x);
-
-u = u_analytical(t_mesh, x_mesh);
-
-timesteps = length(t);
-
+%% Chebyshev calculation
 figure(1);
 plot(x, u0, 'DisplayName', 'Analytical');
 hold on;
@@ -28,12 +26,13 @@ rms_error = [];
 deriv_max_error = [];
 deriv_rms_error = [];
 for N=N_vals
+    % Calculate Chebyshev polynomials
     chebyshev_polys = {[1], [1 0]};
-
     for i=2:N
         chebyshev_polys{i+1} = 2*[chebyshev_polys{i} 0] - [0 0 chebyshev_polys{i-1}];
     end
 
+    % Chebyshev coefficients
     u_gauss_lobatto = u_analytical(0, cos(pi * (0:N) / N));
     u_gauss_lobatto = [u_gauss_lobatto u_gauss_lobatto(end-1:-1:2)];
 
@@ -49,6 +48,7 @@ for N=N_vals
 
     u_hat_1(1) = u_hat_1(1) / 2;
 
+    % Interpolation
     u_cheby = zeros(size(x));
     u_prime_cheby = zeros(size(x));
 
@@ -57,6 +57,7 @@ for N=N_vals
         u_prime_cheby = u_prime_cheby + real(u_hat_1(i)) * polyval(chebyshev_polys{i}, x);
     end
 
+    % Error calculation
     error = u_cheby - u0;
     max_error(end+1) = max(abs(error));
     rms_error(end+1) = sqrt(mean(error.^2));
@@ -79,7 +80,6 @@ title("Chebyshev Approximations of u(x) by Order (N)");
 xlabel("x");
 ylabel("y");
 legend();
-
 
 figure(2);
 hold off;
@@ -107,20 +107,6 @@ title("Error of Chebyshev Approximations of u'(x) vs Order");
 xlabel("Order (N)");
 ylabel("Error");
 legend(["Max Error", "RMS Error"]);
-
-animation = false;
-
-if animation
-    fig = figure();
-    p = plot(x, u(:, 1));
-    ylim([-1 1]);
-    for l=2:timesteps
-        p.YData = u(:, l);
-        ylim([-1 1]);
-        drawnow;
-        pause(1/150);
-    end
-end
 
 function out = c(k, N) 
     out = ones(size(k));

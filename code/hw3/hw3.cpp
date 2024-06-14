@@ -14,13 +14,14 @@
 #define k2 9.28
 
 int main(int argc, char **argv) {
+    // Array definition
     Array<double> node_pos(2, NUM_NODE);
     Array<int> bc_type(NUM_NODE);
     Array<double> bc_val(NUM_NODE);
-    
+
     Array<int> elem_list(2, NUM_ELEM);
     Array<int> elem_boundary(2, NUM_ELEM);
-    
+
     Array<double> quad_points(NUM_QUAD);
     Array<double> quad_weights(NUM_QUAD);
 
@@ -57,6 +58,7 @@ int main(int argc, char **argv) {
     Array<std::complex<double>> u_sample(NUM_SAMP);
     u_sample.fill(std::complex<double>(0.0, 0.0));
 
+    // Filenames
     std::string node_filename = "problem_definition/hw3.nod";
     std::string bc_filename = "problem_definition/hw3.bcs";
     std::string elem_filename = "problem_definition/hw3.ele";
@@ -64,6 +66,7 @@ int main(int argc, char **argv) {
     "quadrature/deg_" + std::to_string(NUM_QUAD) + ".gqd";
     std::string sample_filename = "problem_definition/hw3.spl";
 
+    // Open files
     std::ifstream node_file(node_filename);
     if (!node_file.is_open()) {
         throw std::invalid_argument("Node file (" + node_filename + ") could not be opened, check to make sure its spelled correctly");
@@ -193,6 +196,7 @@ int main(int argc, char **argv) {
 
     sample_file.close();
 
+    // Print outputs from files
     if (PRINT_INPUTS) {
         std::cout << "Node positions" << std::endl;
         node_pos.print();
@@ -222,6 +226,7 @@ int main(int argc, char **argv) {
         sample_region.print();
     }
 
+    // Calculate elem lengths
     for (int i = 0; i < NUM_ELEM; i++) {
         int il1 = elem_list(0, i);
         int il2 = elem_list(1, i);
@@ -481,6 +486,7 @@ int main(int argc, char **argv) {
     LHS.write("output/LHS.mat");
     RHS.write("output/RHS.mat");
 
+    // Solve matrix equation
     lapack_int info;
     lapack_int *ipiv = new lapack_int[LHS.get_rows()];
     info = LAPACKE_zgesv(LAPACK_COL_MAJOR, LHS.get_rows(), 1, reinterpret_cast <__complex__ double*> (LHS.dataPtr()), LHS.get_rows(), ipiv, reinterpret_cast <__complex__ double*> (RHS.dataPtr()), RHS.get_rows());
@@ -489,6 +495,7 @@ int main(int argc, char **argv) {
         throw std::logic_error("Matrix failed to solve with code: " + std::to_string(info));
     }
 
+    // Extract boundary solutions
     for (int i = 0; i < NUM_INNER_NODE; i++) {
         u1(i) = RHS(i);
         u2(i) = RHS(i);

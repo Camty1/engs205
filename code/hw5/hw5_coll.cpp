@@ -6,16 +6,19 @@
 #define TF PI / 8.0
 
 int main(int argc, char** argv) {
+    // Parse command line input
     int N = 8;
     if (argc == 2) {
         N = std::stoi(argv[1]);
     }
 
+    // Calculate timesteps
     double dt = 8.0 / v / pow(N, 2);
     double m = TF / dt;
     int timesteps = ceil(m) * 20000;
     dt = TF / (double) timesteps;
 
+    // Initialize vectors
     std::vector<std::complex<double>> u(N, 0.0);
     std::vector<std::complex<double>> u_prime(N, 0.0);
     std::vector<std::complex<double>> u_dbl_prime(N, 0.0);
@@ -51,8 +54,7 @@ int main(int argc, char** argv) {
 
     file.close();
 
-    // Pseudospectral
-
+    // Collocation
     for (int l = 0; l < timesteps; l++) {
         fftw_execute(u_forward);
         // Calculate u' and u'' in frequency domain

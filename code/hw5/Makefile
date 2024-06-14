@@ -2,7 +2,7 @@ COMPILER=g++
 FLAGS=-pedantic -lblas -llapacke -lfftw3 -lm -Wall -g
 OBJDIR=objects/
 
-all: hw5_pseudo hw5_coll hw5_anti
+all: hw5_pseudo hw5_coll
 
 hw5_pseudo: $(OBJDIR)hw5_pseudo.o
 	$(COMPILER) -o hw5_pseudo $(OBJDIR)hw5_pseudo.o $(FLAGS)
@@ -17,13 +17,6 @@ hw5_coll: $(OBJDIR)hw5_coll.o
 $(OBJDIR)hw5_coll.o: hw5_coll.cpp
 	$(COMPILER) -c hw5_coll.cpp $(FLAGS)
 	mv hw5_coll.o $(OBJDIR)
-
-hw5_anti: $(OBJDIR)hw5_anti.o
-	$(COMPILER) -o hw5_anti $(OBJDIR)hw5_anti.o $(FLAGS)
-
-$(OBJDIR)hw5_anti.o: hw5_anti.cpp
-	$(COMPILER) -c hw5_anti.cpp $(FLAGS)
-	mv hw5_anti.o $(OBJDIR)
 
 clean:
 	rm $(OBJDIR)/*

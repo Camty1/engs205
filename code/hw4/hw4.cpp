@@ -2,11 +2,14 @@
 #define PI 3.14159265358979323846
 
 int main(int argc, char **argv) {
+
+    // Parse command line input
     int n = 4;
     if (argc == 2) {
         n = std::stod(argv[1]);
     }
 
+    // Array setup
     Array<double> x_values(n);
     Array<double> func_values(n);
     Array<double> analytical_deriv_values(n);
@@ -21,23 +24,20 @@ int main(int argc, char **argv) {
 
     fftw_plan p_forward = fftw_plan_dft_r2c_1d(n, func_values.dataPtr(), (fftw_complex*) spec_values.dataPtr(), FFTW_ESTIMATE);
     fftw_plan p_inverse = fftw_plan_dft_c2r_1d(n, (fftw_complex*) spec_values.dataPtr(), func_values.dataPtr(), FFTW_ESTIMATE);
-    fftw_plan p_forward_hanning = fftw_plan_dft_r2c_1d(n, hanning_values.dataPtr(), (fftw_complex*) spec_values.dataPtr(), FFTW_ESTIMATE);
-    fftw_plan p_inverse_hanning = fftw_plan_dft_c2r_1d(n, (fftw_complex*) spec_values.dataPtr(), hanning_values.dataPtr(), FFTW_ESTIMATE);
 
     double dx = 2.0 * PI / (double) (n);
 
-    hanning_window(n, &hanning_window_values);
-
+    // Populate initial function values
     for (int i = 0; i < n; i++) {
         x_values(i) = (double) i * dx;
         func_values(i) = f(x_values(i));
         analytical_deriv_values(i) = dfdx(x_values(i));
         spec_values(i) = func_values(i);
-        hanning_values(i) = func_values(i);
     }
 
     analytical_deriv_values.write("output/analytical_" + std::to_string(n) + ".dat");
 
+    // Finite different calculation
     for (int i = 1; i < n - 1; i++) {
         finite_diff_values(i) = (func_values(i+1) - func_values(i-1)) / (2.0 * dx);
     }
@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
 
     finite_diff_values.write("output/fd_" + std::to_string(n) + ".dat");
 
+    // Finite Element calculation
     for (int i = 0; i < n - 1; i++) {
         elem_list(0, i) = i;
         elem_list(1, i) = i + 1;
@@ -53,11 +54,13 @@ int main(int argc, char **argv) {
     int kl = 1;
     int ku = 1; 
 
+    // Initialize banded matrix
     Array<double> A_fem(2*kl + ku + 1, n);
     Array<double> b_fem(n);
     A_fem.fill(0.0);
     b_fem.fill(0.0);
 
+    // Populate A and b matrices
     for (int l = 0; l < n - 1; l++) {
         fem_elem_matrix(dx, func_values(elem_list(0, l)), func_values(elem_list(1, l)), &elem_mat, &elem_vec);
 
@@ -78,6 +81,8 @@ int main(int argc, char **argv) {
             b_fem(row) = b_fem(row) + elem_vec(i);
         }
     }
+
+    // Factorize matrix
     lapack_int info;
     lapack_int *ipiv = new lapack_int[b_fem.get_rows()];
     info = LAPACKE_dgbtrf(LAPACK_COL_MAJOR, n, n, kl, ku, A_fem.dataPtr(), 2 * kl + ku + 1, ipiv);
@@ -86,13 +91,15 @@ int main(int argc, char **argv) {
         throw(std::logic_error("FEM matrix failed to factor"));
     }
 
+    // Solve matrix
     info = LAPACKE_dgbtrs(LAPACK_COL_MAJOR, 'N', n, kl, ku, 1, A_fem.dataPtr(), 2 * kl + ku + 1, ipiv, b_fem.dataPtr(), n);
 
     if (info != 0) {
         throw(std::logic_error("FEM matrix failed to solve"));
     }
     b_fem.write("output/fem_" + std::to_string(n) + ".dat");
-    
+
+    // Spectral method
     fftw_execute(p_forward);
 
     for (int i = 0; i < n; i++) {
@@ -111,21 +118,6 @@ int main(int argc, char **argv) {
 
     fftw_destroy_plan(p_forward);
     fftw_destroy_plan(p_inverse);
-
-    fftw_execute(p_forward_hanning);
-    for (int i = 0; i < n; i++) {
-        spec_values(i) = spec_values(i) / (double) n * hanning_window_values(i);
-    }
-    for (int k = 0; k < n; k++) {
-        if (k < n / 2) {
-            spec_values(k) = (std::complex<double>) 1j * (double) k * spec_values(k);
-        }
-        else {
-            spec_values(k) = (std::complex<double>) 1j * (double) (k - n) * spec_values(k);
-        }
-    }
-    fftw_execute(p_inverse_hanning);
-    hanning_values.write("output/hann_" + std::to_string(n) + ".dat");
 
     return 0;
 }
