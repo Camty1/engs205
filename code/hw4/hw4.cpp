@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
         finite_diff_values(i) = (func_values(i+1) - func_values(i-1)) / (2.0 * dx);
     }
     finite_diff_values(0) = (func_values(1) - func_values(n-1)) / (2.0 * dx);
-    finite_diff_values(n-1) = finite_diff_values(0);
+    finite_diff_values(n-1) = (func_values(0) - func_values(n - 2)) / (2.0 * dx);
 
     finite_diff_values.write("output/fd_" + std::to_string(n) + ".dat");
 

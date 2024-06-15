@@ -16,25 +16,21 @@ for i=1:length(sizes)
     fd = readmatrix(['output/fd_' num2str(sizes(i)) '.dat']);
     fem = readmatrix(['output/fem_' num2str(sizes(i)) '.dat']);
     sm = readmatrix(['output/sm_' num2str(sizes(i)) '.dat']);
-    hann = readmatrix(['output/hann_' num2str(sizes(i)) '.dat']);
 
     error(1, i) = max(abs(fd - analytical));
     error(2, i) = max(abs(fem - analytical));
     error(3, i) = max(abs(sm - analytical));
-    error(4, i) = max(abs(hann - analytical));
 
     rmserror(1, i) = sqrt(mean((fd - analytical).^2));
     rmserror(2, i) = sqrt(mean((fem - analytical).^2));
     rmserror(3, i) = sqrt(mean((sm - analytical).^2));
-    rmserror(4, i) = sqrt(mean((hann - analytical).^2));
 
     figure(i);
     plot(linspace(0, 2*pi, 1024), analytical_plot, 'DisplayName', 'Analytical');
     hold on;
-    plot(x, fd, 'DisplayName', 'Finite Difference');
-    plot(x, fem, 'DisplayName', 'Finite Element Method');
-    plot(x, sm, 'DisplayName', 'Spectral Method');
-    plot(x, hann, 'DisplayName', 'Spectral + Hann');
+    plot([x, 2 * pi], fd([1:end 1]), 'DisplayName', 'Finite Difference');
+    plot([x, 2 * pi], fem([1:end 1]), 'DisplayName', 'Finite Element Method');
+    plot([x, 2 * pi], sm([1:end 1]), 'DisplayName', 'Spectral Method');
     hold off;
     title(['Approximation Comparisons for N = ' num2str(sizes(i))]);
     xlabel('x');
@@ -48,9 +44,8 @@ loglog(dx, error(1, :), 'DisplayName', 'Finite Difference');
 hold on;
 loglog(dx, error(2, :), 'DisplayName', 'Finite Element Method');
 loglog(dx, error(3, :), 'DisplayName', 'Spectral Method');
-loglog(dx, error(4, :), 'DisplayName', 'Spectral + Hann');
 hold off
-legend('location', 'southeast');
+legend('location', 'southwest');
 title("Max Error of Approximation Methods vs Step Size");
 xlabel("Step Size (delta x)");
 ylabel("Maximum Error");
@@ -60,9 +55,8 @@ loglog(dx, rmserror(1, :), 'DisplayName', 'Finite Difference');
 hold on;
 loglog(dx, rmserror(2, :), 'DisplayName', 'Finite Element Method');
 loglog(dx, rmserror(3, :), 'DisplayName', 'Spectral Method');
-loglog(dx, rmserror(4, :), 'DisplayName', 'Spectral + Hann');
 hold off
-legend('location', 'southeast');
+legend('location', 'southwest');
 title("RMS Error of Approximation Methods vs Step Size");
 xlabel("Step Size (delta x)");
 ylabel("RMS Error");
